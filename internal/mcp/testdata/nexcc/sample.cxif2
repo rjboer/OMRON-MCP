@@ -1,0 +1,5 @@
+{SET<OUTPUT-C-FILE=C:\\temp\\sample.c>}
+{SET<OUTPUT-CXIP-FILE=C:\\temp\\sample.cxip>}
+MODULE NX END_MODULE {USING<\\NX>}
+FUNCTION Sample : BOOL
+END_FUNCTION

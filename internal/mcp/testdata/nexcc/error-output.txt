@@ -1,0 +1,2 @@
+MainProgram:64:19: error: Undefined identifier SafetyBoundary
+B0100200: error
