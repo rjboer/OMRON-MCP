@@ -1,0 +1,68 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-2025
+    steps:
+      - name: Validate stable version tag
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if ($env:RELEASE_TAG -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+$') {
+            throw "Release tag must be a stable version such as v1.2.3: $env:RELEASE_TAG"
+          }
+
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Set up UCRT64 compiler
+        id: msys2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: mingw-w64-ucrt-x86_64-gcc
+
+      - name: Test all packages
+        shell: pwsh
+        run: |
+          $compilerRoot = "${{ steps.msys2.outputs.msys2-location }}\ucrt64\bin"
+          $goToolchain = (go env GOVERSION).Trim()
+          .\test.ps1 -CCPath "$compilerRoot\gcc.exe" -CXXPath "$compilerRoot\g++.exe" -GoToolchain $goToolchain
+
+      - name: Build Windows executable
+        shell: pwsh
+        run: |
+          $compilerRoot = "${{ steps.msys2.outputs.msys2-location }}\ucrt64\bin"
+          $goToolchain = (go env GOVERSION).Trim()
+          .\build.ps1 -CCPath "$compilerRoot\gcc.exe" -CXXPath "$compilerRoot\g++.exe" -GoToolchain $goToolchain
+
+      - name: Create SHA-256 checksum
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath "bin\omron-mcp.exe").Hash.ToLowerInvariant()
+          "$hash  omron-mcp.exe" | Set-Content -LiteralPath "bin\SHA256SUMS.txt" -Encoding ascii
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$env:RELEASE_TAG" "bin\omron-mcp.exe" "bin\SHA256SUMS.txt" --generate-notes --title "$env:RELEASE_TAG"
