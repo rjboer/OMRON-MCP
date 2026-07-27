@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    runs-on: windows-2025
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Set up UCRT64 compiler
+        id: msys2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: mingw-w64-ucrt-x86_64-gcc
+
+      - name: Test all packages
+        shell: pwsh
+        run: |
+          $compilerRoot = "${{ steps.msys2.outputs.msys2-location }}\ucrt64\bin"
+          $goToolchain = (go env GOVERSION).Trim()
+          .\test.ps1 -CCPath "$compilerRoot\gcc.exe" -CXXPath "$compilerRoot\g++.exe" -GoToolchain $goToolchain
+
+      - name: Build Windows executable
+        shell: pwsh
+        run: |
+          $compilerRoot = "${{ steps.msys2.outputs.msys2-location }}\ucrt64\bin"
+          $goToolchain = (go env GOVERSION).Trim()
+          .\build.ps1 -CCPath "$compilerRoot\gcc.exe" -CXXPath "$compilerRoot\g++.exe" -GoToolchain $goToolchain
+
+      - name: Upload Windows executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: omron-mcp-windows-amd64
+          path: bin/omron-mcp.exe
+          retention-days: 14
+          if-no-files-found: error
