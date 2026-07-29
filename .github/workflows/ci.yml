@@ -42,6 +42,9 @@ jobs:
       - name: Test all packages
         run: xvfb-run --auto-servernum go test ./... -count=1
 
+      - name: Test cross-build behavior
+        run: ./scripts/build-windows_test.sh
+
       - name: Cross-build Windows executable
         run: ./scripts/build-windows.sh
 
