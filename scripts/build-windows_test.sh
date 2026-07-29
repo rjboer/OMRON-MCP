@@ -65,6 +65,8 @@ test_successful_build_contract() (
     fail "build script did not create a non-empty Windows executable"
   grep -Fq 'GOOS=windows GOARCH=amd64 CGO_ENABLED=1' "$log" ||
     fail "build script did not pass the Windows CGo environment"
+  grep -Fq 'CC=x86_64-w64-mingw32-gcc-posix CXX=x86_64-w64-mingw32-g++-posix' "$log" ||
+    fail "build script did not select the explicit MinGW compilers"
   grep -Fq -- '-mod=readonly -ldflags -H=windowsgui -o dist/omron-mcp-windows-amd64.exe ./cmd/omron-mcp' "$log" ||
     fail "build script invoked go with unexpected arguments"
 )
