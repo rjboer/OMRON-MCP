@@ -19,7 +19,7 @@ The repository follows this build lifecycle:
 4. The `main` push reruns all verification from the merged commit.
 5. Only after successful tests, cross-compilation, checksum generation, and provenance attestation is the `continuous` prerelease updated.
 
-A failed or cancelled job must never update the published release.
+A job that fails or is cancelled before the final publication stage must not update the published release. GitHub release asset replacement is not atomic; failures during that final stage are handled by a visible failed run and an idempotent rerun.
 
 ## Runner and Toolchain
 
@@ -99,8 +99,9 @@ The job:
    xvfb-run --auto-servernum go test ./... -count=1
    ```
 
-4. invokes `scripts/build-windows.sh`;
-5. uploads `dist/omron-mcp-windows-amd64.exe` with `actions/upload-artifact@v4`.
+4. runs `scripts/build-windows_test.sh` to verify the cross-build script with controlled fake tools;
+5. invokes `scripts/build-windows.sh`;
+6. uploads `dist/omron-mcp-windows-amd64.exe` with `actions/upload-artifact@v4`.
 
 The workflow artifact is:
 
@@ -131,7 +132,8 @@ After the build succeeds, the job:
 2. uploads the executable and checksum as the `omron-mcp-windows-amd64` workflow artifact;
 3. invokes `actions/attest@v4` with `subject-checksums: dist/SHA256SUMS.txt`;
 4. copies the returned Sigstore bundle to the stable release filename `dist/omron-mcp-windows-amd64.attestation.json`;
-5. creates or updates the GitHub prerelease tagged `continuous`.
+5. confirms that the workflow source SHA is still the current `main` SHA and skips publication when it is stale;
+6. creates or updates the GitHub prerelease tagged `continuous`.
 
 The `continuous` release contains:
 
@@ -165,7 +167,7 @@ The attestation records the repository, workflow, source commit, triggering even
 - Rerunning a failed `main` workflow is safe because release assets use stable names and are replaced idempotently.
 - Pull-request workflows never receive release or attestation write permissions.
 
-Updating a moving Git tag and replacing release assets is not an atomic GitHub operation. Publication therefore happens only after every immutable output and attestation exists. If GitHub fails during the final release update, the run fails visibly and a rerun reconciles the tag, notes, and assets.
+Updating a moving Git tag and replacing release assets is not an atomic GitHub operation. Publication therefore happens only after every immutable output and attestation exists. For an existing release, replacement assets are uploaded before the `continuous` tag moves. If GitHub fails during the final release update, the run fails visibly and a rerun reconciles the tag, notes, and assets.
 
 ## Repository Changes
 

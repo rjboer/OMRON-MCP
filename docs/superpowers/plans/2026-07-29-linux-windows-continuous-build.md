@@ -300,6 +300,9 @@ jobs:
       - name: Test all packages
         run: xvfb-run --auto-servernum go test ./... -count=1
 
+      - name: Test cross-build behavior
+        run: ./scripts/build-windows_test.sh
+
       - name: Cross-build Windows executable
         run: ./scripts/build-windows.sh
 
@@ -384,6 +387,9 @@ jobs:
       - name: Test all packages
         run: xvfb-run --auto-servernum go test ./... -count=1
 
+      - name: Test cross-build behavior
+        run: ./scripts/build-windows_test.sh
+
       - name: Cross-build Windows executable
         run: ./scripts/build-windows.sh
 
@@ -426,13 +432,20 @@ jobs:
             "dist/SHA256SUMS.txt"
             "dist/omron-mcp-windows-amd64.attestation.json"
           )
+          current_main_sha=$(gh api \
+            "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" \
+            --jq '.object.sha')
+          if [[ "$current_main_sha" != "$SOURCE_SHA" ]]; then
+            echo "Skipping publication: $SOURCE_SHA is no longer the current main commit ($current_main_sha)."
+            exit 0
+          fi
 
           if gh release view continuous >/dev/null 2>&1; then
+            gh release upload continuous "${assets[@]}" --clobber
             gh api --method PATCH \
               "repos/${GITHUB_REPOSITORY}/git/refs/tags/continuous" \
               -f sha="$SOURCE_SHA" \
               -F force=true
-            gh release upload continuous "${assets[@]}" --clobber
             gh release edit continuous \
               --prerelease \
               --title "Continuous Windows build" \
