@@ -6,7 +6,7 @@
 
 **Architecture:** A shared strict Bash script owns the MinGW cross-build contract. A read-only CI workflow verifies `develop`, pull requests, and manual runs; a separate least-privilege publication workflow independently rebuilds `main`, attests the executable digest, and updates the moving `continuous` prerelease.
 
-**Tech Stack:** GitHub Actions, `ubuntu-24.04`, Go 1.26 from `go.mod`, Bash, Ubuntu MinGW-w64, Xvfb, GitHub CLI, `actions/attest@v4`, Go standard-library contract tests.
+**Tech Stack:** GitHub Actions, `ubuntu-24.04`, Go 1.26 from `go.mod`, Bash, Ubuntu MinGW-w64, Xvfb, GitHub CLI, `actions/attest@v4`, actionlint.
 
 ## Global Constraints
 
@@ -22,167 +22,148 @@
 - Artifact name is `omron-mcp-windows-amd64` with 14-day retention.
 - Continuous release assets are the executable, `SHA256SUMS.txt`, and `omron-mcp-windows-amd64.attestation.json`.
 - Application, GUI, MCP protocol, and MCP tool behavior remain unchanged.
+- Test executable script behavior with controlled fake tools; do not test workflow YAML or human documentation by grepping source text.
+- Validate workflow configuration with `actionlint` and its behavior with a real GitHub-hosted `ubuntu-24.04` run.
 
 ---
 
-### Task 1: Define the Linux Buildflow Contract
+### Task 1: Define the Cross-Build Script Behavior
 
 **Files:**
-- Create: `internal/buildflow/workflows_test.go`
+- Create: `scripts/build-windows_test.sh`
 
 **Interfaces:**
-- Consumes: repository files resolved two directories above `internal/buildflow`
-- Produces: `go test ./internal/buildflow` contract tests for the build script, both workflows, obsolete GitLab removal, and README documentation
+- Consumes: `scripts/build-windows.sh` through a controlled `PATH` containing fake MinGW and Go executables
+- Produces: behavioral tests proving correct target selection, environment propagation, output creation, and rejection of a non-AMD64 compiler target
 
-- [ ] **Step 1: Write the failing contract tests**
+- [ ] **Step 1: Write the failing behavioral tests**
 
-Create `internal/buildflow/workflows_test.go`:
+Create `scripts/build-windows_test.sh`:
 
-```go
-package buildflow_test
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-import (
-	"os"
-	"path/filepath"
-	"runtime"
-	"strings"
-	"testing"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+script="$repo_root/scripts/build-windows.sh"
+
+fail() {
+  echo "FAIL: $*" >&2
+  exit 1
+}
+
+make_fake_tools() {
+  local fake_bin="$1"
+  mkdir -p "$fake_bin"
+
+  cat >"$fake_bin/x86_64-w64-mingw32-gcc-posix" <<'EOF'
+#!/usr/bin/env bash
+if [[ "${1:-}" == "-dumpmachine" ]]; then
+  printf '%s\n' "${FAKE_COMPILER_TARGET:-x86_64-w64-mingw32}"
+fi
+EOF
+
+  cat >"$fake_bin/x86_64-w64-mingw32-g++-posix" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+
+  cat >"$fake_bin/go" <<'EOF'
+#!/usr/bin/env bash
+printf 'GOOS=%s GOARCH=%s CGO_ENABLED=%s CC=%s CXX=%s ARGS=%s\n' \
+  "$GOOS" "$GOARCH" "$CGO_ENABLED" "$CC" "$CXX" "$*" >"$TEST_LOG"
+output=""
+previous=""
+for argument in "$@"; do
+  if [[ "$previous" == "-o" ]]; then
+    output="$argument"
+    break
+  fi
+  previous="$argument"
+done
+[[ -n "$output" ]] || exit 2
+mkdir -p "$(dirname "$output")"
+printf 'MZ' >"$output"
+EOF
+
+  chmod +x "$fake_bin"/*
+}
+
+test_successful_build_contract() (
+  local temp_dir fake_bin work_dir log
+  temp_dir="$(mktemp -d)"
+  trap 'rm -rf "$temp_dir"' EXIT
+  fake_bin="$temp_dir/bin"
+  work_dir="$temp_dir/work"
+  log="$temp_dir/go.log"
+  mkdir -p "$work_dir"
+  make_fake_tools "$fake_bin"
+
+  (
+    cd "$work_dir"
+    PATH="$fake_bin:$PATH" TEST_LOG="$log" "$script"
+  )
+
+  [[ -s "$work_dir/dist/omron-mcp-windows-amd64.exe" ]] ||
+    fail "build script did not create a non-empty Windows executable"
+  grep -Fq 'GOOS=windows GOARCH=amd64 CGO_ENABLED=1' "$log" ||
+    fail "build script did not pass the Windows CGo environment"
+  grep -Fq -- '-mod=readonly -ldflags -H=windowsgui -o dist/omron-mcp-windows-amd64.exe ./cmd/omron-mcp' "$log" ||
+    fail "build script invoked go with unexpected arguments"
 )
 
-func repoRoot(t *testing.T) string {
-	t.Helper()
-	_, currentFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("could not locate workflow contract test")
-	}
-	return filepath.Clean(filepath.Join(filepath.Dir(currentFile), "..", ".."))
-}
+test_wrong_compiler_target_is_rejected() (
+  local temp_dir fake_bin work_dir output
+  temp_dir="$(mktemp -d)"
+  trap 'rm -rf "$temp_dir"' EXIT
+  fake_bin="$temp_dir/bin"
+  work_dir="$temp_dir/work"
+  mkdir -p "$work_dir"
+  make_fake_tools "$fake_bin"
 
-func readRepoFile(t *testing.T, relativePath string) string {
-	t.Helper()
-	content, err := os.ReadFile(filepath.Join(repoRoot(t), filepath.FromSlash(relativePath)))
-	if err != nil {
-		t.Fatalf("read %s: %v", relativePath, err)
-	}
-	return string(content)
-}
+  if output="$(
+    cd "$work_dir"
+    PATH="$fake_bin:$PATH" \
+      TEST_LOG="$temp_dir/go.log" \
+      FAKE_COMPILER_TARGET="i686-w64-mingw32" \
+      "$script" 2>&1
+  )"; then
+    fail "build script accepted a non-AMD64 compiler target"
+  fi
+  grep -Fq 'does not target Windows AMD64' <<<"$output" ||
+    fail "build script returned the wrong compiler-target error"
+  [[ ! -e "$temp_dir/go.log" ]] ||
+    fail "build script invoked go after rejecting the compiler"
+)
 
-func requireContains(t *testing.T, content string, values ...string) {
-	t.Helper()
-	for _, value := range values {
-		if !strings.Contains(content, value) {
-			t.Errorf("expected content to contain %q", value)
-		}
-	}
-}
-
-func TestWindowsCrossBuildScriptContract(t *testing.T) {
-	script := readRepoFile(t, "scripts/build-windows.sh")
-	requireContains(t, script,
-		"set -euo pipefail",
-		`CC="${CC:-x86_64-w64-mingw32-gcc-posix}"`,
-		`CXX="${CXX:-x86_64-w64-mingw32-g++-posix}"`,
-		"-dumpmachine",
-		"GOOS=windows",
-		"GOARCH=amd64",
-		"CGO_ENABLED=1",
-		`-ldflags "-H=windowsgui"`,
-		"dist/omron-mcp-windows-amd64.exe",
-		"./cmd/omron-mcp",
-	)
-}
-
-func TestCIWorkflowContract(t *testing.T) {
-	workflow := readRepoFile(t, ".github/workflows/ci.yml")
-	requireContains(t, workflow,
-		"push:",
-		"- develop",
-		"pull_request:",
-		"workflow_dispatch:",
-		"contents: read",
-		"runs-on: ubuntu-24.04",
-		"actions/checkout@v6",
-		"actions/setup-go@v6",
-		"go-version-file: go.mod",
-		"cache-dependency-path: go.sum",
-		"gcc-mingw-w64-x86-64",
-		"g++-mingw-w64-x86-64",
-		"xvfb-run --auto-servernum go test ./... -count=1",
-		"./scripts/build-windows.sh",
-		"actions/upload-artifact@v4",
-		"name: omron-mcp-windows-amd64",
-		"path: dist/omron-mcp-windows-amd64.exe",
-		"retention-days: 14",
-		"if-no-files-found: error",
-	)
-	if strings.Contains(workflow, "contents: write") ||
-		strings.Contains(workflow, "attestations: write") ||
-		strings.Contains(workflow, "id-token: write") {
-		t.Fatal("verification workflow must remain read-only")
-	}
-}
-
-func TestContinuousReleaseWorkflowContract(t *testing.T) {
-	workflow := readRepoFile(t, ".github/workflows/continuous-release.yml")
-	requireContains(t, workflow,
-		"- main",
-		"contents: write",
-		"id-token: write",
-		"attestations: write",
-		"runs-on: ubuntu-24.04",
-		"xvfb-run --auto-servernum go test ./... -count=1",
-		"./scripts/build-windows.sh",
-		"sha256sum omron-mcp-windows-amd64.exe",
-		"actions/upload-artifact@v4",
-		"actions/attest@v4",
-		"subject-checksums: dist/SHA256SUMS.txt",
-		"steps.attest.outputs.bundle-path",
-		"omron-mcp-windows-amd64.attestation.json",
-		"gh release create continuous",
-		"gh release upload continuous",
-		"--clobber",
-		"Continuous Windows build",
-	)
-}
-
-func TestDocumentationAndObsoleteCIRemoval(t *testing.T) {
-	if _, err := os.Stat(filepath.Join(repoRoot(t), ".gitlab-ci.yml")); !os.IsNotExist(err) {
-		t.Fatalf(".gitlab-ci.yml must be removed, stat error: %v", err)
-	}
-	readme := readRepoFile(t, "README.md")
-	requireContains(t, readme,
-		"develop",
-		"main",
-		"omron-mcp-windows-amd64",
-		"continuous",
-		"SHA256SUMS.txt",
-		"gh attestation verify",
-	)
-}
+test_successful_build_contract
+test_wrong_compiler_target_is_rejected
+echo "build-windows.sh behavior: PASS"
 ```
 
-- [ ] **Step 2: Run the contract tests to verify RED**
+- [ ] **Step 2: Run the behavioral tests to verify RED**
 
 Run:
 
 ```powershell
-go test ./internal/buildflow -count=1
+& 'C:\Program Files\Git\bin\bash.exe' scripts/build-windows_test.sh
 ```
 
-Expected: FAIL because `scripts/build-windows.sh`, `.github/workflows/ci.yml`, and `.github/workflows/continuous-release.yml` do not exist; `.gitlab-ci.yml` still exists.
+Expected: FAIL because `scripts/build-windows.sh` does not exist.
 
 - [ ] **Step 3: Commit the failing tests**
 
 ```powershell
-git add -- internal/buildflow/workflows_test.go
-git commit -m "test: define Linux Windows buildflow contract"
+git add -- scripts/build-windows_test.sh
+git update-index --chmod=+x scripts/build-windows_test.sh
+git commit -m "test: define Windows cross-build behavior"
 ```
 
 ### Task 2: Add the Shared Windows Cross-Build Script
 
 **Files:**
 - Create: `scripts/build-windows.sh`
-- Test: `internal/buildflow/workflows_test.go`
+- Test: `scripts/build-windows_test.sh`
 
 **Interfaces:**
 - Consumes: optional `CC` and `CXX` environment overrides, Go toolchain from `PATH`, package `./cmd/omron-mcp`
@@ -239,10 +220,10 @@ echo "Built $OUTPUT with $compiler_target"
 Run:
 
 ```powershell
-go test ./internal/buildflow -run TestWindowsCrossBuildScriptContract -count=1
+& 'C:\Program Files\Git\bin\bash.exe' scripts/build-windows_test.sh
 ```
 
-Expected: PASS.
+Expected: `build-windows.sh behavior: PASS`.
 
 - [ ] **Step 3: Validate Bash syntax**
 
@@ -266,7 +247,7 @@ git commit -m "build: add Linux Windows cross-build script"
 
 **Files:**
 - Create: `.github/workflows/ci.yml`
-- Test: `internal/buildflow/workflows_test.go`
+- Verify: actionlint and the draft pull request's real GitHub-hosted runner
 
 **Interfaces:**
 - Consumes: pushes to `develop`, all pull requests, and `workflow_dispatch`
@@ -331,13 +312,13 @@ jobs:
           if-no-files-found: error
 ```
 
-- [ ] **Step 2: Run the focused CI contract test**
+- [ ] **Step 2: Validate the CI workflow**
 
 ```powershell
-go test ./internal/buildflow -run TestCIWorkflowContract -count=1
+go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 .github/workflows/ci.yml
 ```
 
-Expected: PASS.
+Expected: exit code 0 with no workflow diagnostics.
 
 - [ ] **Step 3: Commit the CI workflow**
 
@@ -350,7 +331,7 @@ git commit -m "ci: cross-build Windows artifact on Linux"
 
 **Files:**
 - Create: `.github/workflows/continuous-release.yml`
-- Test: `internal/buildflow/workflows_test.go`
+- Verify: actionlint and the post-merge `main` workflow run
 
 **Interfaces:**
 - Consumes: successful pushes to `main`
@@ -465,13 +446,13 @@ jobs:
           fi
 ```
 
-- [ ] **Step 2: Run the focused publication contract test**
+- [ ] **Step 2: Validate both workflows**
 
 ```powershell
-go test ./internal/buildflow -run TestContinuousReleaseWorkflowContract -count=1
+go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
 ```
 
-Expected: PASS.
+Expected: exit code 0 with no workflow diagnostics.
 
 - [ ] **Step 3: Commit the publication workflow**
 
@@ -485,7 +466,6 @@ git commit -m "ci: publish attested continuous Windows build"
 **Files:**
 - Delete: `.gitlab-ci.yml`
 - Modify: `README.md`
-- Test: `internal/buildflow/workflows_test.go`
 
 **Interfaces:**
 - Consumes: exact workflow, artifact, release, and verification names from Tasks 3 and 4
@@ -551,13 +531,14 @@ gh attestation verify .\omron-mcp-windows-amd64.exe --repo rjboer/OMRON-MCP
 The attestation binds the executable digest to its repository, workflow, source commit, and triggering event.
 ````
 
-- [ ] **Step 3: Run all contract tests to verify GREEN**
+- [ ] **Step 3: Verify the cleanup and documented targets**
 
 ```powershell
-go test ./internal/buildflow -count=1
+if (Test-Path -LiteralPath .gitlab-ci.yml) { throw '.gitlab-ci.yml still exists' }
+Select-String -LiteralPath README.md -Pattern 'develop','main','omron-mcp-windows-amd64','continuous','SHA256SUMS.txt','gh attestation verify'
 ```
 
-Expected: all four contract tests pass.
+Expected: `.gitlab-ci.yml` is absent and every documented identifier is found.
 
 - [ ] **Step 4: Commit cleanup and documentation**
 
@@ -570,9 +551,9 @@ git commit -m "docs: document continuous Windows artifacts"
 
 **Files:**
 - Verify: `scripts/build-windows.sh`
+- Verify: `scripts/build-windows_test.sh`
 - Verify: `.github/workflows/ci.yml`
 - Verify: `.github/workflows/continuous-release.yml`
-- Verify: `internal/buildflow/workflows_test.go`
 - Verify: `README.md`
 
 **Interfaces:**
@@ -590,12 +571,20 @@ Expected: exit code 0 with no workflow diagnostics.
 - [ ] **Step 2: Validate Bash syntax**
 
 ```bash
-bash -n scripts/build-windows.sh
+bash -n scripts/build-windows.sh scripts/build-windows_test.sh
 ```
 
 Expected: exit code 0 with no output.
 
-- [ ] **Step 3: Run the complete Go suite locally**
+- [ ] **Step 3: Run the cross-build behavior tests**
+
+```powershell
+& 'C:\Program Files\Git\bin\bash.exe' scripts/build-windows_test.sh
+```
+
+Expected: `build-windows.sh behavior: PASS`.
+
+- [ ] **Step 4: Run the complete Go suite locally**
 
 On the current Windows workstation:
 
@@ -605,7 +594,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\test.ps1
 
 Expected: every Go package passes using the detected 64-bit TDM-GCC compiler.
 
-- [ ] **Step 4: Confirm repository state**
+- [ ] **Step 5: Confirm repository state**
 
 ```powershell
 git diff --check
@@ -615,7 +604,7 @@ git log --oneline origin/main..HEAD
 
 Expected: no whitespace errors, a clean worktree, and only the intended design/buildflow commits.
 
-- [ ] **Step 5: Publish the branch for real Linux verification**
+- [ ] **Step 6: Publish the branch for real Linux verification**
 
 Use the `superpowers:finishing-a-development-branch` and `github:yeet` skills. Push `develop/linux-windows-continuous-build`, create a draft pull request to `main`, and wait for the `CI / test-and-build` check.
 
@@ -626,7 +615,7 @@ Expected GitHub evidence:
 - MinGW cross-compilation succeeds;
 - `omron-mcp-windows-amd64` is downloadable and contains a non-empty `.exe`.
 
-- [ ] **Step 6: Validate publication only after user-approved merge**
+- [ ] **Step 7: Validate publication only after user-approved merge**
 
 Do not merge automatically. After the user approves and merges the pull request to `main`, monitor `Continuous release / build-attest-publish` and verify:
 
@@ -638,7 +627,7 @@ gh attestation verify .\omron-mcp-windows-amd64.exe --repo rjboer/OMRON-MCP
 
 Expected: the release points to the merged `main` commit, all three assets download, the checksum matches, and GitHub verifies the provenance.
 
-- [ ] **Step 7: Establish the `develop` branch after integration**
+- [ ] **Step 8: Establish the `develop` branch after integration**
 
 The remote currently has no `develop` branch. After the buildflow is merged and `main` publication is verified, create `develop` from the verified `main` commit:
 
