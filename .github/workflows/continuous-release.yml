@@ -40,7 +40,7 @@ jobs:
             xvfb
 
       - name: Test all packages
-        run: xvfb-run --auto-servernum go test ./... -count=1
+        run: xvfb-run --auto-servernum go test -tags x11 ./... -count=1
 
       - name: Test cross-build behavior
         run: ./scripts/build-windows_test.sh
