@@ -1,49 +1,36 @@
-# OMRON-MCP
+# OMRON MCP
 
-[![CI](https://github.com/rjboer/OMRON-MCP/actions/workflows/ci.yml/badge.svg)](https://github.com/rjboer/OMRON-MCP/actions/workflows/ci.yml)
+Give your AI assistant a practical connection to an OMRON Sysmac Studio project.
 
-OMRON-MCP is a Go-based MCP server and desktop application for inspecting and working with OMRON Sysmac Studio projects.
+OMRON MCP is a Go-based [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) service that lets an AI tool work with OMRON PLC projects. It can help you create and inspect PLC code, understand project structure, analyse data, and investigate faults without losing sight of the real Sysmac project on your machine.
 
-The project is under active development. Please open a GitHub issue when you encounter a problem.
+The goal is simple: bring an AI assistant into the engineering workflow as a useful, reviewable pair of hands for OMRON PLC development.
 
-## Development flow
+## Get started
 
-Development happens on `develop`. Pull requests into `main` are tested and cross-built on a standard GitHub-hosted Ubuntu runner. Merging into `main` repeats the complete build and updates the registered continuous Windows release.
+1. Create or open a project in **OMRON Sysmac Studio**.
+2. Start OMRON MCP using the instructions for your platform and keep it available to your AI client.
+3. Open an AI tool that supports MCP, such as Codex, and add/configure OMRON MCP as an MCP server. The client starts the MCP initialization handshake and then discovers the available tools.
+4. Select the Sysmac project you just created when the tool asks you to choose a project.
+5. Work with the project through natural language: generate or inspect PLC code, trace project data, debug a fault, and analyse the evidence returned by Sysmac Studio.
 
-## Local Windows verification
+Treat generated changes as engineering changes: review them, test them in a safe environment, and download to a controller only through your normal approval process.
 
-Run all Go package tests with a detected 64-bit MinGW compiler:
+## What it is useful for
 
-```powershell
-.\test.ps1
-```
+- Creating and refining OMRON PLC programs with AI assistance.
+- Exploring Sysmac project structure and implementation details.
+- Debugging faults and analysing variables, containers, and project data.
+- Asking focused questions about an existing project instead of searching through files manually.
 
-Build the local Windows executable:
+For the protocol and implementation details, see [Technical overview](TECHNICAL.md).
 
-```powershell
-.\build.ps1
-```
+## Status
 
-The local executable is written to `bin\omron-mcp.exe`.
+This project is in testing and active development. If something is unclear or does not work as expected, please [open an issue](https://github.com/rjboer/OMRON-MCP/issues).
 
-## GitHub build artifacts
+## About
 
-Pushes to `develop`, pull requests, and manual CI runs test every package and cross-build Windows AMD64 on `ubuntu-24.04`.
+Created and maintained by **Roelof Jan Boer**.
 
-After a successful run, download the `omron-mcp-windows-amd64` artifact from the workflow run. Verification artifacts are retained for 14 days.
-
-## Continuous Windows release
-
-Every successful push or merge to `main` updates the [`continuous` prerelease](https://github.com/rjboer/OMRON-MCP/releases/tag/continuous) with:
-
-- `omron-mcp-windows-amd64.exe`;
-- `SHA256SUMS.txt`;
-- `omron-mcp-windows-amd64.attestation.json`.
-
-Verify the checksum with a SHA-256 tool, or verify the registered GitHub build provenance:
-
-```powershell
-gh attestation verify .\omron-mcp-windows-amd64.exe --repo rjboer/OMRON-MCP
-```
-
-The attestation binds the executable digest to its repository, workflow, source commit, and triggering event.
+Connect with Roelof Jan Boer on [LinkedIn](https://www.linkedin.com/in/rjboer/).
