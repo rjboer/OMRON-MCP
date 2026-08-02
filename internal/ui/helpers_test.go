@@ -228,6 +228,12 @@ func TestMCPLogUsesConsoleHeight(t *testing.T) {
 	}
 }
 
+func TestBuildOutputUsesConsoleHeight(t *testing.T) {
+	if buildOutputRows != 10 {
+		t.Fatalf("build output rows = %d, want 10", buildOutputRows)
+	}
+}
+
 func TestCompactTabPaddingIsSmallerThanDefault(t *testing.T) {
 	if got := compactTabPadding(); got != 8 {
 		t.Fatalf("compact tab padding = %v, want 8", got)

@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	mcpLogLimit = 5000
-	mcpLogRows  = 12
+	mcpLogLimit     = 5000
+	mcpLogRows      = 12
+	buildOutputRows = 10
 )
 
 func newMainTabs(discovery, explorer, validation, gitlab, mcpConnection fyne.CanvasObject) *container.AppTabs {
@@ -322,7 +323,7 @@ func newDependencyRow() *dependencyRow {
 	badgeBackground := canvas.NewRectangle(color.NRGBA{R: 0x17, G: 0x5C, B: 0x3A, A: 0xFF})
 	badgeBackground.SetMinSize(fyne.NewSize(64, 22))
 	badgeStack := container.NewStack(badgeBackground, badge)
-	content := container.NewBorder(nil, nil, nil, container.NewPadded(badgeStack), container.NewVBox(name, path))
+	content := container.NewBorder(nil, nil, nil, container.NewCenter(badgeStack), container.NewVBox(name, path))
 	background := canvas.NewRectangle(color.NRGBA{R: 0x17, G: 0x1C, B: 0x23, A: 0xFF})
 	return &dependencyRow{Card: widget.NewCard("", "", container.NewStack(background, container.NewPadded(content))), name: name, path: path, badge: badge, badgeBackground: badgeBackground, background: background}
 }

@@ -423,6 +423,7 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 	dependencyList.HideSeparators = true
 	buildOutput := widget.NewEntry()
 	buildOutput.MultiLine = true
+	buildOutput.SetMinRowsVisible(buildOutputRows)
 	buildOutput.Wrapping = fyne.TextWrapOff
 	buildOutput.Disable()
 	buildOutput.SetText("Build output will appear here.")
@@ -471,7 +472,7 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 		buildActionPanel,
 		buildOutputPanel,
 		dependencyPanel,
-		capButton,
+		container.NewCenter(capButton),
 	))
 	gitlab := container.NewVBox(
 		widget.NewLabelWithStyle("Git / GitLab", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
