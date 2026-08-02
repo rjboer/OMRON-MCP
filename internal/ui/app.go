@@ -178,7 +178,7 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 			if id < 0 || id >= len(state.DiscoveryCandidates) {
 				return
 			}
-			setProjectCandidateRow(obj.(*widget.Card), state.DiscoveryCandidates[id])
+			setProjectCandidateRow(obj, state.DiscoveryCandidates[id])
 		},
 	)
 	projectList.OnSelected = func(id widget.ListItemID) {

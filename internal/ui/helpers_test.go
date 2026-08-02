@@ -154,6 +154,18 @@ func TestProjectCandidateRowUsesSingleLineEllipsis(t *testing.T) {
 	}
 }
 
+func TestSetProjectCandidateRowIgnoresMalformedCard(t *testing.T) {
+	card := widget.NewCard("", "", widget.NewLabel("unexpected list item"))
+
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			t.Fatalf("setProjectCandidateRow panicked for a malformed list item: %v", recovered)
+		}
+	}()
+
+	setProjectCandidateRow(card, sysmac.ProjectCandidate{Name: "Waterjet"})
+}
+
 func TestWorkbenchThemeUsesLayeredSurfacesAndSubtleDividers(t *testing.T) {
 	workbench := newWorkbenchTheme()
 	if got := workbench.Size(theme.SizeNameSplitThickness); got != 1 {

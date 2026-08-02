@@ -78,7 +78,16 @@ func projectCandidateLines(candidate sysmac.ProjectCandidate) []string {
 	}
 }
 
-func newProjectCandidateRow() *widget.Card {
+type projectCandidateRow struct {
+	*widget.Card
+	title            *widget.Label
+	metadata         *widget.Label
+	folder           *widget.Label
+	status           *widget.Label
+	statusBackground *canvas.Rectangle
+}
+
+func newProjectCandidateRow() *projectCandidateRow {
 	title := widget.NewLabel("")
 	title.TextStyle.Bold = true
 	metadata := widget.NewLabel("")
@@ -96,22 +105,28 @@ func newProjectCandidateRow() *widget.Card {
 	statusBadge := container.NewStack(statusBackground, status)
 	content := container.NewVBox(title, metadata, folder)
 	row := container.NewBorder(nil, nil, nil, container.NewPadded(statusBadge), container.NewPadded(content))
-	return widget.NewCard("", "", row)
+	return &projectCandidateRow{
+		Card:             widget.NewCard("", "", row),
+		title:            title,
+		metadata:         metadata,
+		folder:           folder,
+		status:           status,
+		statusBackground: statusBackground,
+	}
 }
 
-func setProjectCandidateRow(card *widget.Card, candidate sysmac.ProjectCandidate) {
-	lines := projectCandidateLines(candidate)
-	paddedRow := card.Content.(*fyne.Container)
-	row := paddedRow.Objects[0].(*fyne.Container)
-	content := row.Objects[0].(*fyne.Container).Objects[0].(*fyne.Container)
-	for i, line := range lines {
-		content.Objects[i].(*widget.Label).SetText(line)
+func setProjectCandidateRow(obj fyne.CanvasObject, candidate sysmac.ProjectCandidate) {
+	row, ok := obj.(*projectCandidateRow)
+	if !ok || row == nil {
+		return
 	}
-	badge := row.Objects[1].(*fyne.Container).Objects[0].(*fyne.Container)
-	badge.Objects[1].(*widget.Label).SetText(strings.Title(string(candidate.Status)))
-	background := badge.Objects[0].(*canvas.Rectangle)
-	background.FillColor = projectStatusColor(candidate.Status)
-	background.Refresh()
+	lines := projectCandidateLines(candidate)
+	row.title.SetText(lines[0])
+	row.metadata.SetText(lines[1])
+	row.folder.SetText(lines[2])
+	row.status.SetText(strings.Title(string(candidate.Status)))
+	row.statusBackground.FillColor = projectStatusColor(candidate.Status)
+	row.statusBackground.Refresh()
 }
 
 func projectStatusColor(status sysmac.ProjectStatus) color.Color {
