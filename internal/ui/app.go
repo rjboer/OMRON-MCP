@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"fmt"
+	"image/color"
 	"log"
 	"net/http"
 	"os"
@@ -13,6 +14,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/storage"
@@ -401,24 +403,19 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 	explorerSplit.SetOffset(0.62)
 	explorer := explorerSplit
 	dependencies, _ := sysmac.DiscoverSysmacDependencies()
-	dependencyText := "No Sysmac Studio installation found under the configured C:\\ roots."
-	if len(dependencies) > 0 {
-		var lines []string
-		for _, dependency := range dependencies {
-			status := "complete"
-			if !dependency.Complete {
-				status = "missing: " + strings.Join(dependency.Missing, ", ")
-			}
-			lines = append(lines,
-				fmt.Sprintf("[%s] %s\nnexcc: %s\nNexBuilder2: %s\nNexProgramming: %s\nGCC: %s", status, dependency.InstallationRoot, dependency.NexCC, dependency.NexBuilder2, dependency.NexProgramming, dependency.GCC),
-			)
-		}
-		dependencyText = strings.Join(lines, "\n\n")
-	}
 	validationDescription := widget.NewLabel("Build the selected project through the headless NexBuilder2 and NexCC pipeline. PLC online operations remain disabled.")
 	validationDescription.Wrapping = fyne.TextWrapWord
-	dependencyLabel := widget.NewLabel(dependencyText)
-	dependencyLabel.Wrapping = fyne.TextWrapWord
+	dependencyRows := dependencyItems(dependencies)
+	dependencyList := widget.NewList(
+		func() int { return len(dependencyRows) },
+		func() fyne.CanvasObject { return newDependencyRow() },
+		func(id widget.ListItemID, obj fyne.CanvasObject) {
+			if id >= 0 && id < len(dependencyRows) {
+				setDependencyRow(obj, dependencyRows[id])
+			}
+		},
+	)
+	dependencyList.HideSeparators = true
 	buildOutput := widget.NewEntry()
 	buildOutput.MultiLine = true
 	buildOutput.Wrapping = fyne.TextWrapOff
@@ -458,13 +455,17 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 			})
 		}()
 	})
+	buildActionPanel := widget.NewCard("Build action", "Ready", container.NewVBox(validationDescription, container.NewCenter(buildButton)))
+	buildConsole := container.NewStack(canvas.NewRectangle(color.NRGBA{A: 0xFF}), container.NewPadded(buildOutput))
+	buildOutputPanel := widget.NewCard("Build output", "Live", container.NewVScroll(buildConsole))
+	dependencyPanel := widget.NewCard("Detected build dependencies", "Structured paths", container.NewVScroll(dependencyList))
 	validation := container.NewVScroll(container.NewVBox(
 		widget.NewLabelWithStyle("Validation / Build", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		widget.NewLabel("Review the available local build adapter and detected dependencies."),
-		widget.NewCard("NexCC build adapter", "Available", validationDescription),
-		buildButton,
-		widget.NewCard("Build output", "Live", container.NewVScroll(buildOutput)),
-		widget.NewCard("Detected build dependencies", "", dependencyLabel),
+		widget.NewCard("NexCC build adapter", "Available", widget.NewLabel("Compiler adapter detected.")),
+		buildActionPanel,
+		buildOutputPanel,
+		dependencyPanel,
 		capButton,
 	))
 	gitlab := container.NewVBox(

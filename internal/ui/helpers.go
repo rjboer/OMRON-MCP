@@ -267,6 +267,81 @@ func appendLogLine(lines []string, line string, limit int) []string {
 	return lines
 }
 
+type dependencyItem struct {
+	Name     string
+	Path     string
+	Complete bool
+}
+
+func dependencyItems(dependencies []sysmac.SysmacDependencies) []dependencyItem {
+	var items []dependencyItem
+	for _, dependency := range dependencies {
+		for _, item := range []struct {
+			name string
+			path string
+		}{
+			{"sysmac studio", dependency.SysmacStudio},
+			{"nexcc", dependency.NexCC},
+			{"nexbuilder2", dependency.NexBuilder2},
+			{"nexprogramming", dependency.NexProgramming},
+			{"gcc", dependency.GCC},
+		} {
+			if item.path == "" {
+				continue
+			}
+			items = append(items, dependencyItem{Name: item.name, Path: item.path, Complete: dependency.Complete})
+		}
+	}
+	return items
+}
+
+type dependencyRow struct {
+	*widget.Card
+	name            *widget.Label
+	path            *widget.Label
+	badge           *widget.Label
+	badgeBackground *canvas.Rectangle
+	background      *canvas.Rectangle
+}
+
+func newDependencyRow() *dependencyRow {
+	name := widget.NewLabel("")
+	name.TextStyle.Bold = true
+	path := widget.NewLabel("")
+	path.TextStyle = fyne.TextStyle{Monospace: true}
+	path.Wrapping = fyne.TextWrapOff
+	path.Truncation = fyne.TextTruncateEllipsis
+	badge := widget.NewLabel("")
+	badge.Alignment = fyne.TextAlignCenter
+	badge.TextStyle.Bold = true
+	badgeBackground := canvas.NewRectangle(color.NRGBA{R: 0x17, G: 0x5C, B: 0x3A, A: 0xFF})
+	badgeBackground.SetMinSize(fyne.NewSize(64, 22))
+	badgeStack := container.NewStack(badgeBackground, badge)
+	content := container.NewBorder(nil, nil, nil, container.NewPadded(badgeStack), container.NewVBox(name, path))
+	background := canvas.NewRectangle(color.NRGBA{R: 0x17, G: 0x1C, B: 0x23, A: 0xFF})
+	return &dependencyRow{Card: widget.NewCard("", "", container.NewStack(background, container.NewPadded(content))), name: name, path: path, badge: badge, badgeBackground: badgeBackground, background: background}
+}
+
+func setDependencyRow(obj fyne.CanvasObject, item dependencyItem) {
+	row, ok := obj.(*dependencyRow)
+	if !ok || row == nil {
+		return
+	}
+	row.name.SetText(item.Name)
+	row.path.SetText(item.Path)
+	if item.Complete {
+		row.badge.SetText("Ready")
+		row.badgeBackground.FillColor = color.NRGBA{R: 0x17, G: 0x5C, B: 0x3A, A: 0xFF}
+		row.background.FillColor = color.NRGBA{R: 0x17, G: 0x1C, B: 0x23, A: 0xFF}
+	} else {
+		row.badge.SetText("Missing")
+		row.badgeBackground.FillColor = color.NRGBA{R: 0x7A, G: 0x2E, B: 0x35, A: 0xFF}
+		row.background.FillColor = color.NRGBA{R: 0x2B, G: 0x20, B: 0x23, A: 0xFF}
+	}
+	row.badgeBackground.Refresh()
+	row.background.Refresh()
+}
+
 func controlWithHeight(control fyne.CanvasObject, height float32) fyne.CanvasObject {
 	spacer := canvas.NewRectangle(color.NRGBA{A: 0})
 	spacer.SetMinSize(fyne.NewSize(0, height))

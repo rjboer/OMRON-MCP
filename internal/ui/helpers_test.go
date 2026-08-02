@@ -228,6 +228,16 @@ func TestDiscoveryButtonStatePrioritizesScanBeforeAndOpenAfterScan(t *testing.T)
 	}
 }
 
+func TestDependencyItemsFlattenInstallationsIntoScannableRows(t *testing.T) {
+	items := dependencyItems([]sysmac.SysmacDependencies{{InstallationRoot: `C:\OMRON\Sysmac`, Complete: true, NexCC: `C:\OMRON\Sysmac\nexcc.exe`, GCC: `C:\gcc.exe`}})
+	if len(items) != 2 || items[0].Name != "nexcc" || items[1].Name != "gcc" {
+		t.Fatalf("dependency items = %#v", items)
+	}
+	if !items[0].Complete || items[0].Path == "" {
+		t.Fatalf("dependency item = %#v", items[0])
+	}
+}
+
 func TestSetProjectCandidateRowIgnoresMalformedCard(t *testing.T) {
 	card := widget.NewCard("", "", widget.NewLabel("unexpected list item"))
 
