@@ -222,6 +222,12 @@ func TestAppendLogLineKeepsFiveThousandNewestEntries(t *testing.T) {
 	}
 }
 
+func TestMCPLogUsesConsoleHeight(t *testing.T) {
+	if mcpLogRows != 12 {
+		t.Fatalf("MCP log rows = %d, want 12", mcpLogRows)
+	}
+}
+
 func TestCompactTabPaddingIsSmallerThanDefault(t *testing.T) {
 	if got := compactTabPadding(); got != 8 {
 		t.Fatalf("compact tab padding = %v, want 8", got)

@@ -71,8 +71,8 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 	discoveryMessage := widget.NewLabel(DiscoveryMessage(false, false, 0, false, state.DiscoveryPathValid))
 	discoveryMessage.Wrapping = fyne.TextWrapWord
 	activityLines := []string{}
-	activityView := widget.NewEntry()
-	activityView.MultiLine = true
+	activityView := widget.NewMultiLineEntry()
+	activityView.SetMinRowsVisible(mcpLogRows)
 	activityView.Wrapping = fyne.TextWrapOff
 	activityView.OnChanged = func(value string) {
 		expected := strings.Join(activityLines, "\n")
