@@ -199,6 +199,14 @@ func TestEntityDetailsFormUsesOneItemPerVisibleField(t *testing.T) {
 	}
 }
 
+func TestAppendLogLineKeepsNewestEntriesWithinLimit(t *testing.T) {
+	lines := []string{"one", "two", "three"}
+	lines = appendLogLine(lines, "four", 3)
+	if !reflect.DeepEqual(lines, []string{"two", "three", "four"}) {
+		t.Fatalf("log lines = %#v", lines)
+	}
+}
+
 func TestSetProjectCandidateRowIgnoresMalformedCard(t *testing.T) {
 	card := widget.NewCard("", "", widget.NewLabel("unexpected list item"))
 

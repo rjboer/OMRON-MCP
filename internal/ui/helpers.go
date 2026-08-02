@@ -230,6 +230,17 @@ func newEntityDetailsForm(entity sysmac.EntitySummary) *widget.Form {
 	return form
 }
 
+func appendLogLine(lines []string, line string, limit int) []string {
+	if limit <= 0 {
+		return nil
+	}
+	lines = append(lines, line)
+	if len(lines) > limit {
+		lines = lines[len(lines)-limit:]
+	}
+	return lines
+}
+
 func controlWithHeight(control fyne.CanvasObject, height float32) fyne.CanvasObject {
 	spacer := canvas.NewRectangle(color.NRGBA{A: 0})
 	spacer.SetMinSize(fyne.NewSize(0, height))

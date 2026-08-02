@@ -66,6 +66,15 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 	projectCount.TextStyle = fyne.TextStyle{Bold: true}
 	discoveryMessage := widget.NewLabel(DiscoveryMessage(false, false, 0, false, state.DiscoveryPathValid))
 	discoveryMessage.Wrapping = fyne.TextWrapWord
+	activityLines := []string{}
+	activityView := widget.NewEntry()
+	activityView.MultiLine = true
+	activityView.Wrapping = fyne.TextWrapOff
+	activityView.Disable()
+	appendActivity := func(line string) {
+		activityLines = appendLogLine(activityLines, line, 300)
+		activityView.SetText(strings.Join(activityLines, "\n"))
+	}
 
 	filter := widget.NewEntry()
 	filter.SetPlaceHolder("Filter by type, subtype, name, or entity ID")
@@ -87,6 +96,8 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 		if logger != nil {
 			logger.Printf("%s entity=%s status=%s detail=%s", operation, id, statusText, detail)
 		}
+		line := fmt.Sprintf("%s [%s] %s", operation, statusText, detail)
+		fyne.Do(func() { appendActivity(line) })
 	}
 	refreshMCP := func(health mcp.Health) {
 		state.MCPStatus = string(health.Status)
@@ -378,14 +389,55 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 		}
 		dependencyText = strings.Join(lines, "\n\n")
 	}
-	validationDescription := widget.NewLabel("Prepared .cxif2 inputs can be compiled through the sysmac_nexcc_build tool. Full .cxil2 preparation/controller build through NexProgramming.dll and PLC online operations are not enabled yet.")
+	validationDescription := widget.NewLabel("Build the selected project through the headless NexBuilder2 and NexCC pipeline. PLC online operations remain disabled.")
 	validationDescription.Wrapping = fyne.TextWrapWord
 	dependencyLabel := widget.NewLabel(dependencyText)
 	dependencyLabel.Wrapping = fyne.TextWrapWord
+	buildOutput := widget.NewEntry()
+	buildOutput.MultiLine = true
+	buildOutput.Wrapping = fyne.TextWrapOff
+	buildOutput.Disable()
+	buildOutput.SetText("Build output will appear here.")
+	buildButton := widget.NewButton("Build Selected Project", func() {
+		projectPath := strings.TrimSpace(state.SelectedProjectFolder)
+		if projectPath == "" {
+			dialog.ShowInformation("No project selected", "Select a valid project before starting a build.", w)
+			return
+		}
+		buildOutput.SetText("Building " + projectPath + "…")
+		addActivity("Build", projectPath, "started", "headless NexBuilder2/NexCC")
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			result, err := sysmac.BuildProject(ctx, projectPath, sysmac.ProjectBuildOptions{Timeout: 2 * time.Minute})
+			cancel()
+			output := fmt.Sprintf("Status: %s\nProject: %s\nGenerated inputs: %d", result.Status, result.ProjectPath, len(result.GeneratedInputs))
+			if result.HostMessage != "" {
+				output += "\nMessage: " + result.HostMessage
+			}
+			for _, diagnostic := range result.Diagnostics {
+				output += fmt.Sprintf("\n[%s] %s", diagnostic.Code, diagnostic.Message)
+			}
+			if err != nil {
+				output += "\nError: " + err.Error()
+			}
+			fyne.Do(func() {
+				buildOutput.SetText(output)
+				if err != nil {
+					status.SetText("Build failed")
+					addActivity("Build", projectPath, "failed", err.Error())
+				} else {
+					status.SetText("Build " + result.Status)
+					addActivity("Build", projectPath, result.Status, fmt.Sprintf("%d diagnostics", len(result.Diagnostics)))
+				}
+			})
+		}()
+	})
 	validation := container.NewVScroll(container.NewVBox(
 		widget.NewLabelWithStyle("Validation / Build", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		widget.NewLabel("Review the available local build adapter and detected dependencies."),
 		widget.NewCard("NexCC build adapter", "Available", validationDescription),
+		buildButton,
+		widget.NewCard("Build output", "Live", container.NewVScroll(buildOutput)),
 		widget.NewCard("Detected build dependencies", "", dependencyLabel),
 		capButton,
 	))
@@ -394,11 +446,19 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 		widget.NewLabel("Repository status, commits, pushes, and merge requests remain capability-gated; no automatic push is performed."),
 		widget.NewCard("Repository actions", "Not connected", widget.NewLabel("No Git or GitLab operation is available from this screen.")),
 	)
+	executableEntry := widget.NewEntry()
+	executableEntry.SetText(state.MCPExecutable)
+	applyExecutableButton := widget.NewButton("Apply executable", func() {
+		state.MCPExecutable = strings.TrimSpace(executableEntry.Text)
+		addActivity("MCP Configuration", "", "applied", state.MCPExecutable)
+		status.SetText("MCP executable configured")
+	})
 	mcpConnection := container.NewVBox(
 		widget.NewLabelWithStyle("MCP Connection", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		widget.NewLabel("The MCP status validates the local stdio server only. It does not indicate PLC or controller connectivity."),
+		widget.NewLabel("Validates the local stdio server; it does not indicate PLC or controller connectivity."),
 		widget.NewCard("Connection status", "", mcpPanelDetails),
-		widget.NewCard("Configured executable", "", container.NewVBox(widget.NewLabel(state.MCPExecutable), resolvedExecutableLabel, workingDirectoryLabel)),
+		widget.NewCard("Configured executable", "", container.NewVBox(executableEntry, applyExecutableButton, resolvedExecutableLabel, workingDirectoryLabel)),
+		widget.NewCard("MCP log (latest 300 entries)", "Rolling", container.NewVScroll(activityView)),
 	)
 	updateButton := widget.NewButton("Check for updates", func() {
 		go func() {
