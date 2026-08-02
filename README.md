@@ -25,6 +25,15 @@ Treat generated changes as engineering changes: review them, test them in a safe
 
 For the protocol and implementation details, see [Technical overview](TECHNICAL.md).
 
+## Development flow
+
+The repository uses two permanent branches:
+
+- **`develop`** is the integration branch. Commit working changes here; GitHub Actions runs the full test suite and Windows build checks on every push.
+- **`main`** is the release branch. Promote the tested `develop` state to `main`; a push to `main` runs the release workflow, signs the Windows artifact, and publishes the continuous GitHub release.
+
+Feature branches are optional and should be merged back into `develop` before a release is promoted to `main`.
+
 ## Status
 
 This project is in testing and active development. If something is unclear or does not work as expected, please [open an issue](https://github.com/rjboer/OMRON-MCP/issues).
