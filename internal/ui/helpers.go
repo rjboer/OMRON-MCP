@@ -276,6 +276,12 @@ func appendLogLine(lines []string, line string, limit int) []string {
 	return lines
 }
 
+func buildOutputSpacer(height float32) fyne.CanvasObject {
+	spacer := canvas.NewRectangle(color.NRGBA{A: 0})
+	spacer.SetMinSize(fyne.NewSize(0, height))
+	return spacer
+}
+
 type dependencyItem struct {
 	Name     string
 	Path     string

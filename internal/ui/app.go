@@ -470,11 +470,13 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 	buildConsoleSpacer := canvas.NewRectangle(color.NRGBA{A: 0})
 	buildConsoleSpacer.SetMinSize(fyne.NewSize(0, buildOutputHeight))
 	buildConsole := container.NewStack(canvas.NewRectangle(color.NRGBA{A: 0xFF}), buildConsoleSpacer, container.NewPadded(buildOutput))
-	buildOutputPanel := widget.NewCard("Build output", "Live", container.NewVScroll(buildConsole))
+	buildOutputCard := widget.NewCard("Build output", "Live", container.NewVScroll(buildConsole))
+	buildOutputPanel := container.NewStack(buildOutputSpacer(buildOutputHeight), buildOutputCard)
 	dependencySpacer := canvas.NewRectangle(color.NRGBA{A: 0})
 	dependencySpacer.SetMinSize(fyne.NewSize(0, dependencyListHeight))
 	dependencyContent := container.NewStack(dependencySpacer, dependencyList)
-	dependencyPanel := widget.NewCard("Detected build dependencies", "Structured paths", container.NewVScroll(dependencyContent))
+	dependencyCard := widget.NewCard("Detected build dependencies", "Structured paths", container.NewVScroll(dependencyContent))
+	dependencyPanel := container.NewStack(buildOutputSpacer(dependencyListHeight), dependencyCard)
 	validation := container.NewVScroll(container.NewVBox(
 		widget.NewLabelWithStyle("Validation / Build", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		widget.NewLabel("Review the available local build adapter and detected dependencies."),
@@ -498,12 +500,14 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 	mcpLogSpacer := canvas.NewRectangle(color.NRGBA{A: 0})
 	mcpLogSpacer.SetMinSize(fyne.NewSize(0, mcpLogHeight))
 	mcpLogContent := container.NewStack(mcpLogSpacer, activityView)
+	mcpLogCard := widget.NewCard("MCP log (latest 5000 entries)", "Select and copy", container.NewVScroll(mcpLogContent))
+	mcpLogPanel := container.NewStack(buildOutputSpacer(mcpLogHeight), mcpLogCard)
 	mcpContent := container.NewVBox(
 		widget.NewLabelWithStyle("MCP Connection", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		widget.NewLabel("Validates the local stdio server; it does not indicate PLC or controller connectivity."),
 		widget.NewCard("Connection status", "", mcpPanelDetails),
 		widget.NewCard("Configured executable", "", container.NewVBox(executableEntry, container.NewCenter(applyExecutableButton), resolvedExecutableLabel, workingDirectoryLabel)),
-		widget.NewCard("MCP log (latest 5000 entries)", "Select and copy", container.NewVScroll(mcpLogContent)),
+		mcpLogPanel,
 	)
 	mcpConnection := container.NewVScroll(mcpContent)
 	updateButton := widget.NewButton("Check for updates", func() {
