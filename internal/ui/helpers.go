@@ -2,9 +2,11 @@ package ui
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 	"github.com/rjboer/omron-mcp/internal/sysmac"
@@ -12,11 +14,11 @@ import (
 
 func newMainTabs(discovery, explorer, validation, gitlab, mcpConnection fyne.CanvasObject) *container.AppTabs {
 	return container.NewAppTabs(
-		container.NewTabItem("Project Discovery", discovery),
-		container.NewTabItem("Project Explorer", explorer),
-		container.NewTabItem("Validation / Build", validation),
-		container.NewTabItem("GitLab", gitlab),
-		container.NewTabItem("MCP Connection", mcpConnection),
+		container.NewTabItem("Project Discovery", container.NewPadded(discovery)),
+		container.NewTabItem("Project Explorer", container.NewPadded(explorer)),
+		container.NewTabItem("Validation / Build", container.NewPadded(validation)),
+		container.NewTabItem("GitLab", container.NewPadded(gitlab)),
+		container.NewTabItem("MCP Connection", container.NewPadded(mcpConnection)),
 	)
 }
 
@@ -85,13 +87,37 @@ func newProjectCandidateRow() *fyne.Container {
 		label.Wrapping = fyne.TextWrapOff
 		label.Truncation = fyne.TextTruncateEllipsis
 	}
-	return container.NewVBox(title, metadata, folder)
+	status := widget.NewLabel("")
+	status.TextStyle = fyne.TextStyle{Bold: true}
+	status.Alignment = fyne.TextAlignCenter
+	status.Wrapping = fyne.TextWrapOff
+	statusBackground := canvas.NewRectangle(color.NRGBA{R: 0x2A, G: 0x32, B: 0x3D, A: 0xFF})
+	statusBadge := container.NewStack(statusBackground, status)
+	content := container.NewVBox(title, metadata, folder)
+	return container.NewBorder(nil, nil, nil, statusBadge, content)
 }
 
 func setProjectCandidateRow(row *fyne.Container, candidate sysmac.ProjectCandidate) {
 	lines := projectCandidateLines(candidate)
+	content := row.Objects[0].(*fyne.Container)
 	for i, line := range lines {
-		row.Objects[i].(*widget.Label).SetText(line)
+		content.Objects[i].(*widget.Label).SetText(line)
+	}
+	badge := row.Objects[1].(*fyne.Container)
+	badge.Objects[1].(*widget.Label).SetText(strings.Title(string(candidate.Status)))
+	background := badge.Objects[0].(*canvas.Rectangle)
+	background.FillColor = projectStatusColor(candidate.Status)
+	background.Refresh()
+}
+
+func projectStatusColor(status sysmac.ProjectStatus) color.Color {
+	switch status {
+	case sysmac.ProjectStatusValid:
+		return color.NRGBA{R: 0x17, G: 0x5C, B: 0x3A, A: 0xFF}
+	case sysmac.ProjectStatusIncomplete:
+		return color.NRGBA{R: 0x7A, G: 0x5A, B: 0x14, A: 0xFF}
+	default:
+		return color.NRGBA{R: 0x7A, G: 0x2E, B: 0x35, A: 0xFF}
 	}
 }
 

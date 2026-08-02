@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/rjboer/omron-mcp/internal/sysmac"
 )
@@ -128,10 +129,14 @@ func TestProjectCandidateLinesKeepRowsStructured(t *testing.T) {
 
 func TestProjectCandidateRowUsesSingleLineEllipsis(t *testing.T) {
 	row := newProjectCandidateRow()
-	if len(row.Objects) != 3 {
-		t.Fatalf("row contains %d objects, want 3", len(row.Objects))
+	if len(row.Objects) != 2 {
+		t.Fatalf("row contains %d objects, want content and status badge", len(row.Objects))
 	}
-	for i, object := range row.Objects {
+	content, ok := row.Objects[0].(*fyne.Container)
+	if !ok || len(content.Objects) != 3 {
+		t.Fatalf("row content has unexpected shape: %#v", row.Objects[0])
+	}
+	for i, object := range content.Objects {
 		label, ok := object.(*widget.Label)
 		if !ok {
 			t.Fatalf("row object %d has type %T, want *widget.Label", i, object)
@@ -142,5 +147,18 @@ func TestProjectCandidateRowUsesSingleLineEllipsis(t *testing.T) {
 		if label.Truncation != fyne.TextTruncateEllipsis {
 			t.Errorf("row label %d truncation = %v, want TextTruncateEllipsis", i, label.Truncation)
 		}
+	}
+}
+
+func TestWorkbenchThemeUsesLayeredSurfacesAndSubtleDividers(t *testing.T) {
+	workbench := newWorkbenchTheme()
+	if got := workbench.Size(theme.SizeNameSplitThickness); got != 1 {
+		t.Fatalf("split thickness = %v, want 1", got)
+	}
+	background := workbench.Color(theme.ColorNameBackground, theme.VariantDark)
+	panel := workbench.Color(theme.ColorNameInputBackground, theme.VariantDark)
+	border := workbench.Color(theme.ColorNameSeparator, theme.VariantDark)
+	if reflect.DeepEqual(background, panel) || reflect.DeepEqual(panel, border) {
+		t.Fatalf("theme surfaces are not layered: background=%v panel=%v border=%v", background, panel, border)
 	}
 }

@@ -26,6 +26,7 @@ import (
 
 func Run(logger *log.Logger, initialPath, mcpExecutable, version string) error {
 	a := app.NewWithID("rjboer.omron-sysmac-mcp-workbench")
+	a.Settings().SetTheme(newWorkbenchTheme())
 	w := a.NewWindow("OMRON Sysmac MCP Workbench")
 	w.Resize(fyne.NewSize(1100, 720))
 	w.CenterOnScreen()
@@ -320,13 +321,15 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 	browseButton := widget.NewButton("Browse...", browseFolder)
 	scanButton := widget.NewButton("Scan Folder", scanFolder)
 	openSelectedButton := widget.NewButton("Open Selected Project", openSelectedProject)
+	openSelectedButton.Importance = widget.HighImportance
+	browseButton.Importance = widget.LowImportance
 	capButton := widget.NewButton("Show Capabilities", func() {
 		dialog.ShowInformation("Capability boundary", "The GUI provides read-only project discovery and entity metadata. Native project mutations are available only through confirmed MCP tool calls. PLC online operations are outside this application.", w)
 	})
 
 	pathRow := container.NewBorder(nil, nil, nil, browseButton, path)
 	discoveryActions := container.NewHBox(scanButton, openSelectedButton)
-	scanInfo := widget.NewCard("Scan read-only", "", widget.NewLabel("Projects are not modified. Select a valid project to open."))
+	scanInfo := widget.NewCard("", "", widget.NewLabel("Read-only scan · Projects are not modified. Select a valid project to open."))
 	discoveryHeader := container.NewVBox(
 		widget.NewLabelWithStyle("Discover Sysmac Projects", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		widget.NewLabel("Scan a folder or open an existing Sysmac Studio project."),
@@ -340,7 +343,7 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 	discoveryList := container.NewBorder(discoveryHeader, nil, nil, nil, projectList)
 	discoveryDetails := container.NewVBox(scanInfo, widget.NewCard("Project Details", "", projectDetails))
 	discoverySplit := container.NewHSplit(discoveryList, discoveryDetails)
-	discoverySplit.SetOffset(0.72)
+	discoverySplit.SetOffset(0.68)
 	discovery := discoverySplit
 	explorerHeader := container.NewVBox(
 		widget.NewLabelWithStyle("Project Explorer", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
@@ -431,5 +434,7 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 
 	mainTabs := newMainTabs(discovery, explorer, validation, gitlab, mcpConnection)
 	go checkMCP()
-	return container.NewBorder(nil, container.NewVBox(mcpHeaderStatus, mcpHeaderDetails, status), nil, nil, mainTabs)
+	statusContent := container.NewBorder(nil, nil, mcpHeaderStatus, status, mcpHeaderDetails)
+	statusBar := widget.NewCard("", "", statusContent)
+	return container.NewBorder(nil, statusBar, nil, nil, mainTabs)
 }
