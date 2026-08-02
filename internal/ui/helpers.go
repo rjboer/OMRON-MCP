@@ -56,6 +56,16 @@ func DiscoveryMessage(scanned, scanning bool, count int, selected, pathValid boo
 	}
 }
 
+func discoveryButtonState(scanned, scanning bool) (scan, open widget.Importance, openDisabled bool) {
+	if scanning {
+		return widget.LowImportance, widget.LowImportance, true
+	}
+	if scanned {
+		return widget.LowImportance, widget.HighImportance, false
+	}
+	return widget.HighImportance, widget.LowImportance, true
+}
+
 func InitialDiscoveryPath(saved, fallback string) string {
 	if strings.TrimSpace(saved) != "" {
 		return saved

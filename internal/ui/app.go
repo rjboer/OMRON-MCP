@@ -175,6 +175,7 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 		selectedEntityPanel.Refresh()
 	}
 	selectedCandidate := -1
+	var refreshDiscoveryButtons func()
 	refreshDiscoveryMessage := func() {
 		validCount := 0
 		for _, candidate := range state.DiscoveryCandidates {
@@ -184,6 +185,9 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 		}
 		discoveryMessage.SetText(DiscoveryMessage(state.DiscoveryScanned, state.DiscoveryScanning, validCount, selectedCandidate >= 0, state.DiscoveryPathValid))
 		projectCount.SetText(fmt.Sprintf("Discovered Projects (%d)", len(state.DiscoveryCandidates)))
+		if refreshDiscoveryButtons != nil {
+			refreshDiscoveryButtons()
+		}
 	}
 	projectList := widget.NewList(
 		func() int { return len(state.DiscoveryCandidates) },
@@ -339,6 +343,18 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 	openSelectedButton := widget.NewButton("Open Selected Project", openSelectedProject)
 	openSelectedButton.Importance = widget.HighImportance
 	browseButton.Importance = widget.LowImportance
+	refreshDiscoveryButtons = func() {
+		scanImportance, openImportance, openDisabled := discoveryButtonState(state.DiscoveryScanned, state.DiscoveryScanning)
+		scanButton.Importance = scanImportance
+		openSelectedButton.Importance = openImportance
+		openSelectedButton.Disable()
+		if !openDisabled {
+			openSelectedButton.Enable()
+		}
+		scanButton.Refresh()
+		openSelectedButton.Refresh()
+	}
+	refreshDiscoveryButtons()
 	capButton := widget.NewButton("Show Capabilities", func() {
 		dialog.ShowInformation("Capability boundary", "The GUI provides read-only project discovery and entity metadata. Native project mutations are available only through confirmed MCP tool calls. PLC online operations are outside this application.", w)
 	})
