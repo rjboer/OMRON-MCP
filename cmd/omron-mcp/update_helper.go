@@ -12,11 +12,12 @@ import (
 	"github.com/rjboer/omron-mcp/internal/updater"
 )
 
-func main() {
-	target := flag.String("target", "", "executable to replace")
-	assetURL := flag.String("asset-url", "", "release asset URL")
-	checksum := flag.String("sha256", "", "expected SHA-256 checksum")
-	flag.Parse()
+func runUpdateHelper() {
+	flags := flag.NewFlagSet("omron-mcp-updater", flag.ExitOnError)
+	target := flags.String("target", "", "executable to replace")
+	assetURL := flags.String("asset-url", "", "release asset URL")
+	checksum := flags.String("sha256", "", "expected SHA-256 checksum")
+	_ = flags.Parse(os.Args[2:])
 	if *target == "" || *assetURL == "" {
 		fmt.Fprintln(os.Stderr, "target and asset-url are required")
 		os.Exit(2)

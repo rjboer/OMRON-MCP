@@ -28,7 +28,7 @@ EOF
   cat >"$fake_bin/go" <<'EOF'
 #!/usr/bin/env bash
 printf 'GOOS=%s GOARCH=%s CGO_ENABLED=%s CC=%s CXX=%s ARGS=%s\n' \
-  "$GOOS" "$GOARCH" "$CGO_ENABLED" "$CC" "$CXX" "$*" >>"$TEST_LOG"
+  "$GOOS" "$GOARCH" "$CGO_ENABLED" "$CC" "$CXX" "$*" >"$TEST_LOG"
 output=""
 previous=""
 for argument in "$@"; do
@@ -63,16 +63,12 @@ test_successful_build_contract() (
 
   [[ -s "$work_dir/dist/omron-mcp-windows-amd64.exe" ]] ||
     fail "build script did not create a non-empty Windows executable"
-  [[ -s "$work_dir/dist/omron-mcp-updater-windows-amd64.exe" ]] ||
-    fail "build script did not create a non-empty updater executable"
   grep -Fq 'GOOS=windows GOARCH=amd64 CGO_ENABLED=1' "$log" ||
     fail "build script did not pass the Windows CGo environment"
   grep -Fq 'CC=x86_64-w64-mingw32-gcc-posix CXX=x86_64-w64-mingw32-g++-posix' "$log" ||
     fail "build script did not select the explicit MinGW compilers"
   grep -Fq -- '-mod=readonly -ldflags -H=windowsgui -X main.buildCommit=' "$log" ||
     fail "build script invoked go with unexpected arguments"
-  grep -Fq -- '-o dist/omron-mcp-updater-windows-amd64.exe ./cmd/omron-mcp-updater' "$log" ||
-    fail "build script did not build the updater executable"
 )
 
 test_wrong_compiler_target_is_rejected() (

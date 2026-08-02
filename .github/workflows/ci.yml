@@ -54,6 +54,5 @@ jobs:
           name: omron-mcp-windows-amd64
           path: |
             dist/omron-mcp-windows-amd64.exe
-            dist/omron-mcp-updater-windows-amd64.exe
           retention-days: 14
           if-no-files-found: error

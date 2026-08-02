@@ -14,9 +14,18 @@ import (
 var buildCommit = "dev"
 
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "--mcp" {
-		runMCPServer()
-		return
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "--mcp":
+			runMCPServer()
+			return
+		case "--update-helper":
+			runUpdateHelper()
+			return
+		case "--version":
+			fmt.Println(buildCommit)
+			return
+		}
 	}
 	runGUI(buildCommit)
 }

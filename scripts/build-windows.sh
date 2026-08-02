@@ -4,7 +4,6 @@ set -euo pipefail
 CC="${CC:-x86_64-w64-mingw32-gcc-posix}"
 CXX="${CXX:-x86_64-w64-mingw32-g++-posix}"
 OUTPUT="dist/omron-mcp-windows-amd64.exe"
-UPDATER_OUTPUT="dist/omron-mcp-updater-windows-amd64.exe"
 BUILD_COMMIT="${BUILD_COMMIT:-$(git rev-parse HEAD)}"
 
 command -v "$CC" >/dev/null 2>&1 || {
@@ -33,16 +32,9 @@ export CC
 export CXX
 
 go build -mod=readonly -ldflags "-H=windowsgui -X main.buildCommit=$BUILD_COMMIT" -o "$OUTPUT" ./cmd/omron-mcp
-CGO_ENABLED=0 go build -mod=readonly -ldflags "-s -w" -o "$UPDATER_OUTPUT" ./cmd/omron-mcp-updater
 test -s "$OUTPUT" || {
   echo "Windows build did not produce a non-empty executable: $OUTPUT" >&2
   exit 1
 }
 
 echo "Built $OUTPUT with $compiler_target"
-test -s "$UPDATER_OUTPUT" || {
-  echo "Updater build did not produce a non-empty executable: $UPDATER_OUTPUT" >&2
-  exit 1
-}
-
-echo "Built $UPDATER_OUTPUT with $compiler_target"

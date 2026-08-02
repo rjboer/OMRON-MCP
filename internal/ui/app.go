@@ -37,6 +37,9 @@ func Run(logger *log.Logger, initialPath, mcpExecutable, version string) error {
 		DiscoveryPathValid: true,
 	}
 	applicationExecutable, _ := os.Executable()
+	if err := updater.EnsureHelperVersion(applicationExecutable, updater.HelperPath(applicationExecutable), version); err != nil && logger != nil {
+		logger.Printf("updater helper is unavailable: %v", err)
+	}
 	w.SetContent(buildWorkbench(w, state, logger, applicationExecutable, version, a.Preferences()))
 	w.ShowAndRun()
 	return nil
@@ -387,7 +390,7 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 				})
 				return
 			}
-			command := exec.Command(helper, "--target", applicationExecutable, "--asset-url", asset.BrowserDownloadURL, "--sha256", asset.SHA256())
+			command := exec.Command(helper, "--update-helper", "--target", applicationExecutable, "--asset-url", asset.BrowserDownloadURL, "--sha256", asset.SHA256())
 			if err := command.Start(); err != nil {
 				fyne.Do(func() { dialog.ShowError(err, w) })
 				return
