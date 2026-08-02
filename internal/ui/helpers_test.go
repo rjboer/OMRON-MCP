@@ -214,13 +214,17 @@ func TestCompactTabPaddingIsSmallerThanDefault(t *testing.T) {
 }
 
 func TestDiscoveryButtonStatePrioritizesScanBeforeAndOpenAfterScan(t *testing.T) {
-	scan, open, openDisabled := discoveryButtonState(false, false)
+	scan, open, openDisabled := discoveryButtonState(false, false, false)
 	if scan != widget.HighImportance || open != widget.LowImportance || !openDisabled {
 		t.Fatalf("initial button state = %v, %v, disabled=%v", scan, open, openDisabled)
 	}
-	scan, open, openDisabled = discoveryButtonState(true, false)
+	scan, open, openDisabled = discoveryButtonState(true, false, false)
 	if scan != widget.LowImportance || open != widget.HighImportance || openDisabled {
 		t.Fatalf("scanned button state = %v, %v, disabled=%v", scan, open, openDisabled)
+	}
+	scan, open, openDisabled = discoveryButtonState(true, false, true)
+	if scan != widget.LowImportance || open != widget.LowImportance || !openDisabled {
+		t.Fatalf("opened button state = %v, %v, disabled=%v", scan, open, openDisabled)
 	}
 }
 

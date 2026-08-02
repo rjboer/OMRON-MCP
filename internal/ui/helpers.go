@@ -56,8 +56,8 @@ func DiscoveryMessage(scanned, scanning bool, count int, selected, pathValid boo
 	}
 }
 
-func discoveryButtonState(scanned, scanning bool) (scan, open widget.Importance, openDisabled bool) {
-	if scanning {
+func discoveryButtonState(scanned, scanning, opened bool) (scan, open widget.Importance, openDisabled bool) {
+	if scanning || opened {
 		return widget.LowImportance, widget.LowImportance, true
 	}
 	if scanned {

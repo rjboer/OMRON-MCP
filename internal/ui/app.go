@@ -175,6 +175,7 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 		selectedEntityPanel.Refresh()
 	}
 	selectedCandidate := -1
+	projectOpened := false
 	var refreshDiscoveryButtons func()
 	refreshDiscoveryMessage := func() {
 		validCount := 0
@@ -222,6 +223,7 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 			state.DiscoveryPathValid = false
 			state.DiscoveryCandidates = nil
 			selectedCandidate = -1
+			projectOpened = false
 			refreshDiscoveryMessage()
 			return
 		}
@@ -231,6 +233,7 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 		state.DiscoveryPathValid = true
 		state.DiscoveryCandidates = nil
 		selectedCandidate = -1
+		projectOpened = false
 		refreshDiscoveryMessage()
 		projectList.Refresh()
 		go func() {
@@ -253,13 +256,13 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 		}()
 	}
 
-	loadProject := func(projectPath string) {
+	loadProject := func(projectPath string) bool {
 		projectPath = strings.TrimSpace(projectPath)
 		if projectPath == "" {
 			err := fmt.Errorf("project path is required")
 			addActivity("Inspect", "", "failed", err.Error())
 			dialog.ShowError(err, w)
-			return
+			return false
 		}
 		status.SetText("Inspecting project…")
 		inspection, err := sysmac.Inspect(projectPath)
@@ -267,7 +270,7 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 			addActivity("Inspect", "", "failed", err.Error())
 			status.SetText("Inspection failed")
 			dialog.ShowError(err, w)
-			return
+			return false
 		}
 		state.ProjectPath, state.Inspection, state.SelectedID = projectPath, inspection, ""
 		state.SelectedProjectFolder = projectPath
@@ -282,6 +285,7 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 		refreshEntities()
 		addActivity("Inspect", inspection.ProjectName, "applied", fmt.Sprintf("%d entities indexed", len(inspection.Entities)))
 		status.SetText("Project inspected; select an entity")
+		return true
 	}
 	openSelectedProject := func() {
 		if selectedCandidate < 0 || selectedCandidate >= len(state.DiscoveryCandidates) {
@@ -293,7 +297,10 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 			dialog.ShowInformation("Project cannot be opened", candidate.Error, w)
 			return
 		}
-		loadProject(candidate.Folder)
+		if loadProject(candidate.Folder) {
+			projectOpened = true
+			refreshDiscoveryMessage()
+		}
 	}
 	browseFolder := func() {
 		folderDialog := dialog.NewFolderOpen(func(selected fyne.ListableURI, err error) {
@@ -311,6 +318,7 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 			state.DiscoveryScanned = false
 			state.DiscoveryCandidates = nil
 			selectedCandidate = -1
+			projectOpened = false
 			projectList.Refresh()
 			refreshDiscoveryMessage()
 			status.SetText("Folder selected; click Scan Folder")
@@ -344,7 +352,7 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 	openSelectedButton.Importance = widget.HighImportance
 	browseButton.Importance = widget.LowImportance
 	refreshDiscoveryButtons = func() {
-		scanImportance, openImportance, openDisabled := discoveryButtonState(state.DiscoveryScanned, state.DiscoveryScanning)
+		scanImportance, openImportance, openDisabled := discoveryButtonState(state.DiscoveryScanned, state.DiscoveryScanning, projectOpened)
 		scanButton.Importance = scanImportance
 		openSelectedButton.Importance = openImportance
 		openSelectedButton.Disable()
