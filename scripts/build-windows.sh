@@ -4,7 +4,7 @@ set -euo pipefail
 CC="${CC:-x86_64-w64-mingw32-gcc-posix}"
 CXX="${CXX:-x86_64-w64-mingw32-g++-posix}"
 OUTPUT="dist/omron-mcp-windows-amd64.exe"
-BUILD_COMMIT="${BUILD_COMMIT:-$(git rev-parse HEAD)}"
+BUILD_COMMIT="${BUILD_COMMIT:-dev}"
 
 command -v "$CC" >/dev/null 2>&1 || {
   echo "C compiler not found: $CC" >&2

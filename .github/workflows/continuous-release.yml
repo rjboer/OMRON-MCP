@@ -46,6 +46,8 @@ jobs:
         run: ./scripts/build-windows_test.sh
 
       - name: Cross-build Windows executable
+        env:
+          BUILD_COMMIT: ${{ github.sha }}
         run: ./scripts/build-windows.sh
 
       - name: Create SHA-256 checksum
