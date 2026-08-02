@@ -27,7 +27,7 @@ import (
 func Run(logger *log.Logger, initialPath, mcpExecutable, version string) error {
 	a := app.NewWithID("rjboer.omron-sysmac-mcp-workbench")
 	w := a.NewWindow("OMRON Sysmac MCP Workbench")
-	w.Resize(fyne.NewSize(800, 520))
+	w.Resize(fyne.NewSize(1100, 720))
 	w.CenterOnScreen()
 	savedPath := a.Preferences().String("discovery.last-folder")
 	state := &model.Workbench{
@@ -59,8 +59,10 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 	resolvedExecutableLabel.Wrapping = fyne.TextWrapWord
 	workingDirectoryLabel := widget.NewLabel("Working directory: not resolved")
 	workingDirectoryLabel.Wrapping = fyne.TextWrapWord
-	projectSummary := widget.NewLabel("No project inspected")
-	projectSummary.Wrapping = fyne.TextWrapWord
+	projectDetails := widget.NewLabel("Select a project to view its details.")
+	projectDetails.Wrapping = fyne.TextWrapWord
+	projectCount := widget.NewLabel("Discovered Projects (0)")
+	projectCount.TextStyle = fyne.TextStyle{Bold: true}
 	discoveryMessage := widget.NewLabel(DiscoveryMessage(false, false, 0, false, state.DiscoveryPathValid))
 	discoveryMessage.Wrapping = fyne.TextWrapWord
 
@@ -166,6 +168,7 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 			}
 		}
 		discoveryMessage.SetText(DiscoveryMessage(state.DiscoveryScanned, state.DiscoveryScanning, validCount, selectedCandidate >= 0, state.DiscoveryPathValid))
+		projectCount.SetText(fmt.Sprintf("Discovered Projects (%d)", len(state.DiscoveryCandidates)))
 	}
 	projectList := widget.NewList(
 		func() int { return len(state.DiscoveryCandidates) },
@@ -184,7 +187,7 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 		selectedCandidate = id
 		candidate := state.DiscoveryCandidates[id]
 		state.SelectedProjectFolder = candidate.Folder
-		projectSummary.SetText(projectCandidateLabel(candidate))
+		projectDetails.SetText(projectDetailsText(candidate))
 		refreshDiscoveryMessage()
 		status.SetText("Selected project: " + candidate.Name)
 	}
@@ -250,11 +253,11 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 		state.ProjectPath, state.Inspection, state.SelectedID = projectPath, inspection, ""
 		state.SelectedProjectFolder = projectPath
 		selectionLabel.SetText("No entity selected")
+		details := "Folder: " + projectPath
 		if inspection.ProjectName != "" {
-			projectSummary.SetText(fmt.Sprintf("Project: %s\nKind: %s\nEntities: %d\nPath: %s", inspection.ProjectName, inspection.Location.Kind, len(inspection.Entities), projectPath))
-		} else {
-			projectSummary.SetText(fmt.Sprintf("Container: %s\nEntries: %d\nPath: %s", inspection.Location.Kind, len(inspection.Entries), projectPath))
+			details = "Name: " + inspection.ProjectName + "\n" + details
 		}
+		projectDetails.SetText(details)
 		refreshEntities()
 		addActivity("Inspect", inspection.ProjectName, "applied", fmt.Sprintf("%d entities indexed", len(inspection.Entities)))
 		status.SetText("Project inspected; select an entity")
@@ -323,16 +326,32 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 
 	pathRow := container.NewBorder(nil, nil, nil, browseButton, path)
 	discoveryActions := container.NewHBox(scanButton, openSelectedButton)
-	discovery := container.NewBorder(
-		container.NewVBox(widget.NewLabel("Sysmac project folder or solution root"), pathRow, discoveryActions, discoveryMessage),
-		container.NewVBox(projectSummary, widget.NewLabel("Scan is read-only. Select a valid project before opening it.")),
-		nil, nil,
-		projectList,
+	scanInfo := widget.NewCard("Scan read-only", "", widget.NewLabel("Projects are not modified. Select a valid project to open."))
+	discoveryHeader := container.NewVBox(
+		widget.NewLabelWithStyle("Discover Sysmac Projects", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabel("Scan a folder or open an existing Sysmac Studio project."),
+		widget.NewLabel("Sysmac project folder or solution root"),
+		pathRow,
+		discoveryActions,
+		discoveryMessage,
+		widget.NewSeparator(),
+		projectCount,
 	)
+	discoveryList := container.NewBorder(discoveryHeader, nil, nil, nil, projectList)
+	discoveryDetails := container.NewVBox(scanInfo, widget.NewCard("Project Details", "", projectDetails))
+	discoverySplit := container.NewHSplit(discoveryList, discoveryDetails)
+	discoverySplit.SetOffset(0.72)
+	discovery := discoverySplit
+	explorerHeader := container.NewVBox(
+		widget.NewLabelWithStyle("Project Explorer", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabel("Inspect read-only metadata from the selected Sysmac project."),
+		filter,
+	)
+	entityListPanel := container.NewBorder(widget.NewLabelWithStyle("Entities", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}), nil, nil, nil, entityList)
 	explorer := container.NewBorder(
-		container.NewVBox(widget.NewLabel("Project Explorer"), filter, widget.NewLabel("Select an entity to view read-only metadata.")),
-		container.NewVBox(widget.NewSeparator(), selectionLabel), nil, nil,
-		entityList,
+		explorerHeader,
+		widget.NewCard("Selected entity", "", selectionLabel), nil, nil,
+		entityListPanel,
 	)
 	dependencies, _ := sysmac.DiscoverSysmacDependencies()
 	dependencyText := "No Sysmac Studio installation found under the configured C:\\ roots."
@@ -349,17 +368,27 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 		}
 		dependencyText = strings.Join(lines, "\n\n")
 	}
-	validation := container.NewVBox(widget.NewLabel("NexCC build adapter available"), widget.NewLabel("Prepared .cxif2 inputs can be compiled through the sysmac_nexcc_build tool. Full .cxil2 preparation/controller build through NexProgramming.dll and PLC online operations are not enabled yet."), widget.NewSeparator(), widget.NewLabel("Detected build dependencies"), widget.NewLabel(dependencyText), capButton)
-	gitlab := container.NewVBox(widget.NewLabel("Git / GitLab"), widget.NewLabel("Repository status, commits, pushes, and merge requests remain capability-gated; no automatic push is performed."))
+	validationDescription := widget.NewLabel("Prepared .cxif2 inputs can be compiled through the sysmac_nexcc_build tool. Full .cxil2 preparation/controller build through NexProgramming.dll and PLC online operations are not enabled yet.")
+	validationDescription.Wrapping = fyne.TextWrapWord
+	dependencyLabel := widget.NewLabel(dependencyText)
+	dependencyLabel.Wrapping = fyne.TextWrapWord
+	validation := container.NewVScroll(container.NewVBox(
+		widget.NewLabelWithStyle("Validation / Build", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabel("Review the available local build adapter and detected dependencies."),
+		widget.NewCard("NexCC build adapter", "Available", validationDescription),
+		widget.NewCard("Detected build dependencies", "", dependencyLabel),
+		capButton,
+	))
+	gitlab := container.NewVBox(
+		widget.NewLabelWithStyle("Git / GitLab", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabel("Repository status, commits, pushes, and merge requests remain capability-gated; no automatic push is performed."),
+		widget.NewCard("Repository actions", "Not connected", widget.NewLabel("No Git or GitLab operation is available from this screen.")),
+	)
 	mcpConnection := container.NewVBox(
-		widget.NewLabel("MCP Connection"),
+		widget.NewLabelWithStyle("MCP Connection", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		widget.NewLabel("The MCP status validates the local stdio server only. It does not indicate PLC or controller connectivity."),
-		widget.NewSeparator(),
-		widget.NewLabel("Configured executable: "+state.MCPExecutable),
-		resolvedExecutableLabel,
-		workingDirectoryLabel,
-		mcpPanelDetails,
-		widget.NewButton("Test MCP Connection", checkMCP),
+		widget.NewCard("Connection status", "", mcpPanelDetails),
+		widget.NewCard("Configured executable", "", container.NewVBox(widget.NewLabel(state.MCPExecutable), resolvedExecutableLabel, workingDirectoryLabel)),
 	)
 	updateButton := widget.NewButton("Check for updates", func() {
 		go func() {
@@ -398,7 +427,7 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 			fyne.Do(func() { status.SetText("Update downloaded; restarting..."); w.Close() })
 		}()
 	})
-	mcpConnection.Add(updateButton)
+	mcpConnection.Add(container.NewHBox(widget.NewButton("Test MCP Connection", checkMCP), updateButton))
 
 	mainTabs := newMainTabs(discovery, explorer, validation, gitlab, mcpConnection)
 	go checkMCP()

@@ -84,6 +84,24 @@ func TestInitialDiscoveryPathPrefersSavedPath(t *testing.T) {
 	}
 }
 
+func TestProjectDetailsUseOnlyCandidateData(t *testing.T) {
+	candidate := sysmac.ProjectCandidate{
+		Name: "Waterjet", ID: "project-1", Folder: `C:\OMRON\Data\Solution\project-1`,
+		Status: sysmac.ProjectStatusValid,
+	}
+	details := projectDetailsText(candidate)
+	for _, want := range []string{"Name: Waterjet", "ID: project-1", "Folder: C:\\OMRON\\Data\\Solution\\project-1", "Status: valid"} {
+		if !strings.Contains(details, want) {
+			t.Fatalf("project details %q does not contain %q", details, want)
+		}
+	}
+	for _, absent := range []string{"Entities:", "Duplicates:", "About:"} {
+		if strings.Contains(details, absent) {
+			t.Fatalf("project details %q contains unsupported field %q", details, absent)
+		}
+	}
+}
+
 func TestProjectCandidateLinesKeepRowsStructured(t *testing.T) {
 	candidate := sysmac.ProjectCandidate{
 		Name:     "Waterjet",

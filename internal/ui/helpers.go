@@ -52,6 +52,18 @@ func projectCandidateLabel(candidate sysmac.ProjectCandidate) string {
 	return text
 }
 
+func projectDetailsText(candidate sysmac.ProjectCandidate) string {
+	modified := "unknown"
+	if !candidate.Modified.IsZero() {
+		modified = candidate.Modified.Local().Format("2006-01-02 15:04")
+	}
+	details := fmt.Sprintf("Name: %s\nID: %s\nFolder: %s\nModified: %s\nStatus: %s", candidate.Name, candidate.ID, candidate.Folder, modified, candidate.Status)
+	if candidate.Error != "" {
+		details += "\nError: " + candidate.Error
+	}
+	return details
+}
+
 func projectCandidateLines(candidate sysmac.ProjectCandidate) []string {
 	modified := "unknown"
 	if !candidate.Modified.IsZero() {
