@@ -13,6 +13,8 @@ import (
 	"github.com/rjboer/omron-mcp/internal/sysmac"
 )
 
+const mcpLogLimit = 5000
+
 func newMainTabs(discovery, explorer, validation, gitlab, mcpConnection fyne.CanvasObject) *container.AppTabs {
 	return container.NewAppTabs(
 		container.NewTabItem("Project Discovery", compactTabContent(discovery)),

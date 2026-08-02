@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -204,6 +205,20 @@ func TestAppendLogLineKeepsNewestEntriesWithinLimit(t *testing.T) {
 	lines = appendLogLine(lines, "four", 3)
 	if !reflect.DeepEqual(lines, []string{"two", "three", "four"}) {
 		t.Fatalf("log lines = %#v", lines)
+	}
+}
+
+func TestAppendLogLineKeepsFiveThousandNewestEntries(t *testing.T) {
+	if mcpLogLimit != 5000 {
+		t.Fatalf("MCP log limit = %d, want 5000", mcpLogLimit)
+	}
+	lines := make([]string, 5000)
+	for i := range lines {
+		lines[i] = fmt.Sprintf("line-%d", i)
+	}
+	lines = appendLogLine(lines, "line-5000", 5000)
+	if len(lines) != 5000 || lines[0] != "line-1" || lines[len(lines)-1] != "line-5000" {
+		t.Fatalf("rolling log boundaries = len %d, first %q, last %q", len(lines), lines[0], lines[len(lines)-1])
 	}
 }
 

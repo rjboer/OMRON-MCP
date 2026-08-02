@@ -74,9 +74,14 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 	activityView := widget.NewEntry()
 	activityView.MultiLine = true
 	activityView.Wrapping = fyne.TextWrapOff
-	activityView.Disable()
+	activityView.OnChanged = func(value string) {
+		expected := strings.Join(activityLines, "\n")
+		if value != expected {
+			activityView.SetText(expected)
+		}
+	}
 	appendActivity := func(line string) {
-		activityLines = appendLogLine(activityLines, line, 300)
+		activityLines = appendLogLine(activityLines, line, mcpLogLimit)
 		activityView.SetText(strings.Join(activityLines, "\n"))
 	}
 
@@ -485,7 +490,7 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 		widget.NewLabel("Validates the local stdio server; it does not indicate PLC or controller connectivity."),
 		widget.NewCard("Connection status", "", mcpPanelDetails),
 		widget.NewCard("Configured executable", "", container.NewVBox(executableEntry, applyExecutableButton, resolvedExecutableLabel, workingDirectoryLabel)),
-		widget.NewCard("MCP log (latest 300 entries)", "Rolling", container.NewVScroll(activityView)),
+		widget.NewCard("MCP log (latest 5000 entries)", "Select and copy", container.NewVScroll(activityView)),
 	)
 	mcpConnection := container.NewVScroll(mcpContent)
 	updateButton := widget.NewButton("Check for updates", func() {
