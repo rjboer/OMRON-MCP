@@ -226,6 +226,9 @@ func TestMCPLogUsesConsoleHeight(t *testing.T) {
 	if mcpLogRows != 12 {
 		t.Fatalf("MCP log rows = %d, want 12", mcpLogRows)
 	}
+	if mcpLogHeight != 300 {
+		t.Fatalf("MCP log height = %v, want 300", mcpLogHeight)
+	}
 }
 
 func TestBuildOutputUsesConsoleHeight(t *testing.T) {

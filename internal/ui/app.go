@@ -492,12 +492,15 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 		addActivity("MCP Configuration", "", "applied", state.MCPExecutable)
 		status.SetText("MCP executable configured")
 	})
+	mcpLogSpacer := canvas.NewRectangle(color.NRGBA{A: 0})
+	mcpLogSpacer.SetMinSize(fyne.NewSize(0, mcpLogHeight))
+	mcpLogContent := container.NewStack(mcpLogSpacer, activityView)
 	mcpContent := container.NewVBox(
 		widget.NewLabelWithStyle("MCP Connection", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		widget.NewLabel("Validates the local stdio server; it does not indicate PLC or controller connectivity."),
 		widget.NewCard("Connection status", "", mcpPanelDetails),
-		widget.NewCard("Configured executable", "", container.NewVBox(executableEntry, applyExecutableButton, resolvedExecutableLabel, workingDirectoryLabel)),
-		widget.NewCard("MCP log (latest 5000 entries)", "Select and copy", container.NewVScroll(activityView)),
+		widget.NewCard("Configured executable", "", container.NewVBox(executableEntry, container.NewCenter(applyExecutableButton), resolvedExecutableLabel, workingDirectoryLabel)),
+		widget.NewCard("MCP log (latest 5000 entries)", "Select and copy", container.NewVScroll(mcpLogContent)),
 	)
 	mcpConnection := container.NewVScroll(mcpContent)
 	updateButton := widget.NewButton("Check for updates", func() {

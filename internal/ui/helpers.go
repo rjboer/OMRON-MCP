@@ -16,6 +16,7 @@ import (
 const (
 	mcpLogLimit                  = 5000
 	mcpLogRows                   = 12
+	mcpLogHeight         float32 = 300
 	buildOutputRows              = 10
 	buildOutputHeight    float32 = 280
 	dependencyListHeight float32 = 240
