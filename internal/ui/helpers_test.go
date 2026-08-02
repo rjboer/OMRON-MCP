@@ -207,6 +207,12 @@ func TestAppendLogLineKeepsNewestEntriesWithinLimit(t *testing.T) {
 	}
 }
 
+func TestCompactTabPaddingIsSmallerThanDefault(t *testing.T) {
+	if got := compactTabPadding(); got != 8 {
+		t.Fatalf("compact tab padding = %v, want 8", got)
+	}
+}
+
 func TestSetProjectCandidateRowIgnoresMalformedCard(t *testing.T) {
 	card := widget.NewCard("", "", widget.NewLabel("unexpected list item"))
 

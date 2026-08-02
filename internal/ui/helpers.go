@@ -15,11 +15,27 @@ import (
 
 func newMainTabs(discovery, explorer, validation, gitlab, mcpConnection fyne.CanvasObject) *container.AppTabs {
 	return container.NewAppTabs(
-		container.NewTabItem("Project Discovery", container.NewPadded(discovery)),
-		container.NewTabItem("Project Explorer", container.NewPadded(explorer)),
-		container.NewTabItem("Validation / Build", container.NewPadded(validation)),
-		container.NewTabItem("GitLab", container.NewPadded(gitlab)),
-		container.NewTabItem("MCP Connection", container.NewPadded(mcpConnection)),
+		container.NewTabItem("Project Discovery", compactTabContent(discovery)),
+		container.NewTabItem("Project Explorer", compactTabContent(explorer)),
+		container.NewTabItem("Validation / Build", compactTabContent(validation)),
+		container.NewTabItem("GitLab", compactTabContent(gitlab)),
+		container.NewTabItem("MCP Connection", compactTabContent(mcpConnection)),
+	)
+}
+
+func compactTabPadding() float32 {
+	return 8
+}
+
+func compactTabContent(content fyne.CanvasObject) fyne.CanvasObject {
+	padding := compactTabPadding()
+	spacer := func(horizontal, vertical float32) fyne.CanvasObject {
+		rectangle := canvas.NewRectangle(color.NRGBA{A: 0})
+		rectangle.SetMinSize(fyne.NewSize(horizontal, vertical))
+		return rectangle
+	}
+	return container.NewBorder(
+		spacer(0, padding), spacer(0, padding), spacer(padding, 0), spacer(padding, 0), content,
 	)
 }
 

@@ -29,6 +29,8 @@ func Run(logger *log.Logger, initialPath, mcpExecutable, version string) error {
 	a.Settings().SetTheme(newWorkbenchTheme())
 	w := a.NewWindow("OMRON Sysmac MCP Workbench")
 	w.Resize(fyne.NewSize(1100, 720))
+	w.SetFixedSize(false)
+	w.SetPadded(false)
 	w.CenterOnScreen()
 	savedPath := a.Preferences().String("discovery.last-folder")
 	state := &model.Workbench{
