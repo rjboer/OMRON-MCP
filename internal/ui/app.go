@@ -155,19 +155,9 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 	}
 	updateSelectionPanel := func(entity sysmac.EntitySummary) {
 		selectedEntityPanel.RemoveAll()
-		fields := container.NewGridWithColumns(2)
-		for _, field := range entityDetailsFields(entity) {
-			label := widget.NewLabel(field.Label)
-			label.TextStyle = fyne.TextStyle{Bold: true}
-			value := widget.NewLabel(field.Value)
-			value.Wrapping = fyne.TextWrapOff
-			value.Truncation = fyne.TextTruncateEllipsis
-			fields.Add(label)
-			fields.Add(value)
-		}
 		metadata := widget.NewLabel(entityMetadataText(entity))
 		metadata.Wrapping = fyne.TextWrapOff
-		selectedEntityPanel.Add(fields)
+		selectedEntityPanel.Add(newEntityDetailsForm(entity))
 		selectedEntityPanel.Add(widget.NewCard("System Metadata", "", metadata))
 		selectedEntityPanel.Refresh()
 	}
@@ -367,12 +357,12 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 		widget.NewLabel("Inspect read-only metadata from the selected Sysmac project."),
 		filter,
 	)
-	entityListPanel := container.NewBorder(widget.NewLabelWithStyle("Entities", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}), nil, nil, nil, container.NewVScroll(entityList))
-	explorer := container.NewBorder(
-		explorerHeader,
-		widget.NewCard("Selected entity", "", selectedEntityPanel), nil, nil,
-		entityListPanel,
-	)
+	entityListPanel := container.NewBorder(widget.NewLabelWithStyle("Entities", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}), nil, nil, nil, entityList)
+	explorerLeft := container.NewBorder(explorerHeader, nil, nil, nil, entityListPanel)
+	explorerRight := container.NewPadded(widget.NewCard("Selected entity", "", selectedEntityPanel))
+	explorerSplit := container.NewHSplit(explorerLeft, explorerRight)
+	explorerSplit.SetOffset(0.62)
+	explorer := explorerSplit
 	dependencies, _ := sysmac.DiscoverSysmacDependencies()
 	dependencyText := "No Sysmac Studio installation found under the configured C:\\ roots."
 	if len(dependencies) > 0 {

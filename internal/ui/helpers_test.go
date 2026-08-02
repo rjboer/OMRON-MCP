@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/rjboer/omron-mcp/internal/sysmac"
@@ -180,6 +181,21 @@ func TestEntityDetailsFieldsKeepSystemMetadataSeparate(t *testing.T) {
 	metadata := entityMetadataText(entity)
 	if !strings.Contains(metadata, "ID: entity-1") || !strings.Contains(metadata, "Tracking ID: tracking-1") {
 		t.Fatalf("entity metadata = %q", metadata)
+	}
+}
+
+func TestEntityDetailsFormUsesOneItemPerVisibleField(t *testing.T) {
+	testApp := app.New()
+	defer testApp.Quit()
+	entity := sysmac.EntitySummary{Name: "Programs", Type: "Group", Subtype: "IecPrograms"}
+	form := newEntityDetailsForm(entity)
+	if len(form.Items) != 3 {
+		t.Fatalf("form item count = %d, want 3", len(form.Items))
+	}
+	for i, want := range []string{"Name", "Type", "Subtype"} {
+		if form.Items[i].Text != want {
+			t.Errorf("form item %d label = %q, want %q", i, form.Items[i].Text, want)
+		}
 	}
 }
 

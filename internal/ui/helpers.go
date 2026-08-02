@@ -218,6 +218,18 @@ func entityMetadataText(entity sysmac.EntitySummary) string {
 	return fmt.Sprintf("ID: %s\nTracking ID: %s", entity.ID, entity.TrackingID)
 }
 
+func newEntityDetailsForm(entity sysmac.EntitySummary) *widget.Form {
+	form := widget.NewForm()
+	for _, field := range entityDetailsFields(entity) {
+		value := widget.NewLabel(field.Value)
+		value.TextStyle = fyne.TextStyle{Bold: true}
+		value.Wrapping = fyne.TextWrapOff
+		value.Truncation = fyne.TextTruncateEllipsis
+		form.Append(field.Label, value)
+	}
+	return form
+}
+
 func controlWithHeight(control fyne.CanvasObject, height float32) fyne.CanvasObject {
 	spacer := canvas.NewRectangle(color.NRGBA{A: 0})
 	spacer.SetMinSize(fyne.NewSize(0, height))
