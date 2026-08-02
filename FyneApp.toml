@@ -1,0 +1,6 @@
+[Details]
+Name = "OMRON Sysmac MCP Workbench"
+ID = "rjboer.omron-sysmac-mcp-workbench"
+
+[Migrations]
+fyneDo = true
