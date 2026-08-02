@@ -154,6 +154,35 @@ func TestProjectCandidateRowUsesSingleLineEllipsis(t *testing.T) {
 	}
 }
 
+func TestProjectCandidateStatusBadgeHasFixedMinimumSize(t *testing.T) {
+	row := newProjectCandidateRow()
+	if got := row.statusBackground.MinSize(); got.Width < 72 || got.Height < 24 {
+		t.Fatalf("status badge minimum size = %v, want at least 72x24", got)
+	}
+}
+
+func TestEntityRowSeparatesNameClassificationAndSystemID(t *testing.T) {
+	entity := sysmac.EntitySummary{
+		Name: "CPU Rack", Type: "NexPC21Configuration", Subtype: "CpuRackProxy", ID: "413b92e0-be71-4f4f-a8c1-123456789abc",
+	}
+	lines := entityRowLines(entity)
+	if lines[0] != "CPU Rack" || lines[1] != "NexPC21Configuration · CpuRackProxy" || lines[2] != "ID: "+entity.ID {
+		t.Fatalf("entity row lines = %#v", lines)
+	}
+}
+
+func TestEntityDetailsFieldsKeepSystemMetadataSeparate(t *testing.T) {
+	entity := sysmac.EntitySummary{Name: "Programs", Type: "Group", Subtype: "IecPrograms", ID: "entity-1", TrackingID: "tracking-1"}
+	fields := entityDetailsFields(entity)
+	if len(fields) != 3 || fields[0].Label != "Name" || fields[0].Value != "Programs" || fields[1].Value != "Group" || fields[2].Value != "IecPrograms" {
+		t.Fatalf("entity detail fields = %#v", fields)
+	}
+	metadata := entityMetadataText(entity)
+	if !strings.Contains(metadata, "ID: entity-1") || !strings.Contains(metadata, "Tracking ID: tracking-1") {
+		t.Fatalf("entity metadata = %q", metadata)
+	}
+}
+
 func TestSetProjectCandidateRowIgnoresMalformedCard(t *testing.T) {
 	card := widget.NewCard("", "", widget.NewLabel("unexpected list item"))
 

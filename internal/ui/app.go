@@ -72,17 +72,16 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 	filtered := []sysmac.EntitySummary{}
 	entityList := widget.NewList(
 		func() int { return len(filtered) },
-		func() fyne.CanvasObject { return widget.NewLabel("") },
+		func() fyne.CanvasObject { return newEntityRow() },
 		func(id widget.ListItemID, obj fyne.CanvasObject) {
 			if id >= 0 && id < len(filtered) {
-				obj.(*widget.Label).SetText(entityLabel(filtered[id]))
+				setEntityRow(obj, filtered[id], id)
 			}
 		},
 	)
 	entityList.HideSeparators = true
 
-	selectionLabel := widget.NewLabel("No entity selected")
-	selectionLabel.Wrapping = fyne.TextWrapWord
+	selectedEntityPanel := container.NewVBox(widget.NewLabel("Select an entity to inspect its metadata."))
 
 	addActivity := func(operation, id, statusText, detail string) {
 		if logger != nil {
@@ -155,10 +154,22 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 		entityList.Refresh()
 	}
 	updateSelectionPanel := func(entity sysmac.EntitySummary) {
-		selectionLabel.SetText(fmt.Sprintf(
-			"Selected entity\nName: %s\nType: %s\nSubtype: %s\nID: %s\nTracking ID: %s",
-			entity.Name, entity.Type, entity.Subtype, entity.ID, entity.TrackingID,
-		))
+		selectedEntityPanel.RemoveAll()
+		fields := container.NewGridWithColumns(2)
+		for _, field := range entityDetailsFields(entity) {
+			label := widget.NewLabel(field.Label)
+			label.TextStyle = fyne.TextStyle{Bold: true}
+			value := widget.NewLabel(field.Value)
+			value.Wrapping = fyne.TextWrapOff
+			value.Truncation = fyne.TextTruncateEllipsis
+			fields.Add(label)
+			fields.Add(value)
+		}
+		metadata := widget.NewLabel(entityMetadataText(entity))
+		metadata.Wrapping = fyne.TextWrapOff
+		selectedEntityPanel.Add(fields)
+		selectedEntityPanel.Add(widget.NewCard("System Metadata", "", metadata))
+		selectedEntityPanel.Refresh()
 	}
 	selectedCandidate := -1
 	refreshDiscoveryMessage := func() {
@@ -253,7 +264,9 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 		}
 		state.ProjectPath, state.Inspection, state.SelectedID = projectPath, inspection, ""
 		state.SelectedProjectFolder = projectPath
-		selectionLabel.SetText("No entity selected")
+		selectedEntityPanel.RemoveAll()
+		selectedEntityPanel.Add(widget.NewLabel("Select an entity to inspect its metadata."))
+		selectedEntityPanel.Refresh()
 		details := "Folder: " + projectPath
 		if inspection.ProjectName != "" {
 			details = "Name: " + inspection.ProjectName + "\n" + details
@@ -331,7 +344,7 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 	pathRow := container.NewBorder(nil, nil, nil, controlWithHeight(browseButton, controlHeight), path)
 	discoveryActions := container.NewHBox(
 		controlWithHeight(scanButton, controlHeight),
-		container.NewVBox(controlWithHeight(openSelectedButton, controlHeight), discoveryMessage),
+		controlWithHeight(openSelectedButton, controlHeight),
 	)
 	scanInfo := widget.NewCard("", "", widget.NewLabel("Read-only scan · Projects are not modified. Select a valid project to open."))
 	discoveryHeader := container.NewVBox(
@@ -340,6 +353,7 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 		widget.NewLabel("Sysmac project folder or solution root"),
 		pathRow,
 		discoveryActions,
+		discoveryMessage,
 		widget.NewSeparator(),
 		projectCount,
 	)
@@ -353,10 +367,10 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 		widget.NewLabel("Inspect read-only metadata from the selected Sysmac project."),
 		filter,
 	)
-	entityListPanel := container.NewBorder(widget.NewLabelWithStyle("Entities", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}), nil, nil, nil, entityList)
+	entityListPanel := container.NewBorder(widget.NewLabelWithStyle("Entities", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}), nil, nil, nil, container.NewVScroll(entityList))
 	explorer := container.NewBorder(
 		explorerHeader,
-		widget.NewCard("Selected entity", "", selectionLabel), nil, nil,
+		widget.NewCard("Selected entity", "", selectedEntityPanel), nil, nil,
 		entityListPanel,
 	)
 	dependencies, _ := sysmac.DiscoverSysmacDependencies()

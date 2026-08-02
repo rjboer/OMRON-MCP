@@ -8,6 +8,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/rjboer/omron-mcp/internal/sysmac"
 )
@@ -85,6 +86,7 @@ type projectCandidateRow struct {
 	folder           *widget.Label
 	status           *widget.Label
 	statusBackground *canvas.Rectangle
+	statusBadge      *fyne.Container
 }
 
 func newProjectCandidateRow() *projectCandidateRow {
@@ -103,6 +105,7 @@ func newProjectCandidateRow() *projectCandidateRow {
 	statusBackground := canvas.NewRectangle(color.NRGBA{R: 0x2A, G: 0x32, B: 0x3D, A: 0xFF})
 	statusBackground.CornerRadius = 8
 	statusBadge := container.NewStack(statusBackground, status)
+	statusBackground.SetMinSize(fyne.NewSize(72, 24))
 	content := container.NewVBox(title, metadata, folder)
 	row := container.NewBorder(nil, nil, nil, container.NewPadded(statusBadge), container.NewPadded(content))
 	return &projectCandidateRow{
@@ -112,6 +115,7 @@ func newProjectCandidateRow() *projectCandidateRow {
 		folder:           folder,
 		status:           status,
 		statusBackground: statusBackground,
+		statusBadge:      statusBadge,
 	}
 }
 
@@ -138,6 +142,80 @@ func projectStatusColor(status sysmac.ProjectStatus) color.Color {
 	default:
 		return color.NRGBA{R: 0x7A, G: 0x2E, B: 0x35, A: 0xFF}
 	}
+}
+
+type entityRow struct {
+	*widget.Card
+	name           *widget.Label
+	classification *widget.Label
+	id             *canvas.Text
+	background     *canvas.Rectangle
+}
+
+func entityRowLines(entity sysmac.EntitySummary) [3]string {
+	classification := entity.Type
+	if entity.Subtype != "" {
+		classification += " · " + entity.Subtype
+	}
+	return [3]string{entity.Name, classification, "ID: " + entity.ID}
+}
+
+func newEntityRow() *entityRow {
+	name := widget.NewLabel("")
+	name.TextStyle.Bold = true
+	name.Wrapping = fyne.TextWrapOff
+	name.Truncation = fyne.TextTruncateEllipsis
+	classification := widget.NewLabel("")
+	classification.Wrapping = fyne.TextWrapOff
+	classification.Truncation = fyne.TextTruncateEllipsis
+	id := canvas.NewText("", color.NRGBA{R: 0x88, G: 0x8F, B: 0x9B, A: 0xFF})
+	id.TextSize = theme.TextSize() - 1
+	id.TextStyle = fyne.TextStyle{Monospace: true}
+	id.Alignment = fyne.TextAlignTrailing
+	background := canvas.NewRectangle(color.NRGBA{R: 0x1B, G: 0x20, B: 0x28, A: 0xFF})
+	content := container.NewBorder(nil, nil, nil, container.NewPadded(id), container.NewVBox(name, classification))
+	body := container.NewStack(background, container.NewPadded(content))
+	return &entityRow{
+		Card:           widget.NewCard("", "", body),
+		name:           name,
+		classification: classification,
+		id:             id,
+		background:     background,
+	}
+}
+
+func setEntityRow(obj fyne.CanvasObject, entity sysmac.EntitySummary, index int) {
+	row, ok := obj.(*entityRow)
+	if !ok || row == nil {
+		return
+	}
+	lines := entityRowLines(entity)
+	row.name.SetText(lines[0])
+	row.classification.SetText(lines[1])
+	row.id.Text = lines[2]
+	row.background.FillColor = color.NRGBA{R: 0x1B, G: 0x20, B: 0x28, A: 0xFF}
+	if index%2 == 1 {
+		row.background.FillColor = color.NRGBA{R: 0x20, G: 0x25, B: 0x2E, A: 0xFF}
+	}
+	row.id.Refresh()
+	row.background.Refresh()
+}
+
+type entityDetailField struct {
+	Label string
+	Value string
+}
+
+func entityDetailsFields(entity sysmac.EntitySummary) []entityDetailField {
+	fields := []entityDetailField{{Label: "Name", Value: entity.Name}, {Label: "Type", Value: entity.Type}}
+	if entity.Subtype != "" {
+		fields = append(fields, entityDetailField{Label: "Subtype", Value: entity.Subtype})
+	}
+	return fields
+}
+
+func entityMetadataText(entity sysmac.EntitySummary) string {
+	return fmt.Sprintf("ID: %s\nTracking ID: %s", entity.ID, entity.TrackingID)
 }
 
 func controlWithHeight(control fyne.CanvasObject, height float32) fyne.CanvasObject {
