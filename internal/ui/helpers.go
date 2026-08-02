@@ -78,7 +78,7 @@ func projectCandidateLines(candidate sysmac.ProjectCandidate) []string {
 	}
 }
 
-func newProjectCandidateRow() *fyne.Container {
+func newProjectCandidateRow() *widget.Card {
 	title := widget.NewLabel("")
 	title.TextStyle.Bold = true
 	metadata := widget.NewLabel("")
@@ -92,18 +92,22 @@ func newProjectCandidateRow() *fyne.Container {
 	status.Alignment = fyne.TextAlignCenter
 	status.Wrapping = fyne.TextWrapOff
 	statusBackground := canvas.NewRectangle(color.NRGBA{R: 0x2A, G: 0x32, B: 0x3D, A: 0xFF})
+	statusBackground.CornerRadius = 8
 	statusBadge := container.NewStack(statusBackground, status)
 	content := container.NewVBox(title, metadata, folder)
-	return container.NewBorder(nil, nil, nil, statusBadge, content)
+	row := container.NewBorder(nil, nil, nil, container.NewPadded(statusBadge), container.NewPadded(content))
+	return widget.NewCard("", "", row)
 }
 
-func setProjectCandidateRow(row *fyne.Container, candidate sysmac.ProjectCandidate) {
+func setProjectCandidateRow(card *widget.Card, candidate sysmac.ProjectCandidate) {
 	lines := projectCandidateLines(candidate)
-	content := row.Objects[0].(*fyne.Container)
+	paddedRow := card.Content.(*fyne.Container)
+	row := paddedRow.Objects[0].(*fyne.Container)
+	content := row.Objects[0].(*fyne.Container).Objects[0].(*fyne.Container)
 	for i, line := range lines {
 		content.Objects[i].(*widget.Label).SetText(line)
 	}
-	badge := row.Objects[1].(*fyne.Container)
+	badge := row.Objects[1].(*fyne.Container).Objects[0].(*fyne.Container)
 	badge.Objects[1].(*widget.Label).SetText(strings.Title(string(candidate.Status)))
 	background := badge.Objects[0].(*canvas.Rectangle)
 	background.FillColor = projectStatusColor(candidate.Status)
@@ -119,6 +123,12 @@ func projectStatusColor(status sysmac.ProjectStatus) color.Color {
 	default:
 		return color.NRGBA{R: 0x7A, G: 0x2E, B: 0x35, A: 0xFF}
 	}
+}
+
+func controlWithHeight(control fyne.CanvasObject, height float32) fyne.CanvasObject {
+	spacer := canvas.NewRectangle(color.NRGBA{A: 0})
+	spacer.SetMinSize(fyne.NewSize(0, height))
+	return container.NewStack(spacer, control)
 }
 
 func FilteredEntities(entities []sysmac.EntitySummary, query string) []sysmac.EntitySummary {

@@ -178,7 +178,7 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 			if id < 0 || id >= len(state.DiscoveryCandidates) {
 				return
 			}
-			setProjectCandidateRow(obj.(*fyne.Container), state.DiscoveryCandidates[id])
+			setProjectCandidateRow(obj.(*widget.Card), state.DiscoveryCandidates[id])
 		},
 	)
 	projectList.OnSelected = func(id widget.ListItemID) {
@@ -327,8 +327,12 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 		dialog.ShowInformation("Capability boundary", "The GUI provides read-only project discovery and entity metadata. Native project mutations are available only through confirmed MCP tool calls. PLC online operations are outside this application.", w)
 	})
 
-	pathRow := container.NewBorder(nil, nil, nil, browseButton, path)
-	discoveryActions := container.NewHBox(scanButton, openSelectedButton)
+	controlHeight := path.MinSize().Height
+	pathRow := container.NewBorder(nil, nil, nil, controlWithHeight(browseButton, controlHeight), path)
+	discoveryActions := container.NewHBox(
+		controlWithHeight(scanButton, controlHeight),
+		container.NewVBox(controlWithHeight(openSelectedButton, controlHeight), discoveryMessage),
+	)
 	scanInfo := widget.NewCard("", "", widget.NewLabel("Read-only scan · Projects are not modified. Select a valid project to open."))
 	discoveryHeader := container.NewVBox(
 		widget.NewLabelWithStyle("Discover Sysmac Projects", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
@@ -336,12 +340,11 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 		widget.NewLabel("Sysmac project folder or solution root"),
 		pathRow,
 		discoveryActions,
-		discoveryMessage,
 		widget.NewSeparator(),
 		projectCount,
 	)
 	discoveryList := container.NewBorder(discoveryHeader, nil, nil, nil, projectList)
-	discoveryDetails := container.NewVBox(scanInfo, widget.NewCard("Project Details", "", projectDetails))
+	discoveryDetails := container.NewPadded(container.NewVBox(scanInfo, widget.NewCard("Project Details", "", projectDetails)))
 	discoverySplit := container.NewHSplit(discoveryList, discoveryDetails)
 	discoverySplit.SetOffset(0.68)
 	discovery := discoverySplit

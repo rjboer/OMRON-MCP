@@ -129,12 +129,16 @@ func TestProjectCandidateLinesKeepRowsStructured(t *testing.T) {
 
 func TestProjectCandidateRowUsesSingleLineEllipsis(t *testing.T) {
 	row := newProjectCandidateRow()
-	if len(row.Objects) != 2 {
-		t.Fatalf("row contains %d objects, want content and status badge", len(row.Objects))
+	if row.Content == nil {
+		t.Fatal("project row card has no content")
 	}
-	content, ok := row.Objects[0].(*fyne.Container)
+	paddedRow, ok := row.Content.(*fyne.Container)
+	if !ok || len(paddedRow.Objects) != 2 {
+		t.Fatalf("row content has unexpected shape: %#v", row.Content)
+	}
+	content, ok := paddedRow.Objects[0].(*fyne.Container).Objects[0].(*fyne.Container)
 	if !ok || len(content.Objects) != 3 {
-		t.Fatalf("row content has unexpected shape: %#v", row.Objects[0])
+		t.Fatalf("row text content has unexpected shape: %#v", content)
 	}
 	for i, object := range content.Objects {
 		label, ok := object.(*widget.Label)
