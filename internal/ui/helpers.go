@@ -14,9 +14,11 @@ import (
 )
 
 const (
-	mcpLogLimit     = 5000
-	mcpLogRows      = 12
-	buildOutputRows = 10
+	mcpLogLimit                  = 5000
+	mcpLogRows                   = 12
+	buildOutputRows              = 10
+	buildOutputHeight    float32 = 280
+	dependencyListHeight float32 = 240
 )
 
 func newMainTabs(discovery, explorer, validation, gitlab, mcpConnection fyne.CanvasObject) *container.AppTabs {

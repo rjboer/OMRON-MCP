@@ -232,6 +232,9 @@ func TestBuildOutputUsesConsoleHeight(t *testing.T) {
 	if buildOutputRows != 10 {
 		t.Fatalf("build output rows = %d, want 10", buildOutputRows)
 	}
+	if buildOutputHeight != 280 || dependencyListHeight != 240 {
+		t.Fatalf("panel heights = build %v, dependencies %v", buildOutputHeight, dependencyListHeight)
+	}
 }
 
 func TestCompactTabPaddingIsSmallerThanDefault(t *testing.T) {
