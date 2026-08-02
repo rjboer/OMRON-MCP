@@ -247,4 +247,10 @@ func TestWorkbenchThemeUsesLayeredSurfacesAndSubtleDividers(t *testing.T) {
 	if reflect.DeepEqual(background, panel) || reflect.DeepEqual(panel, border) {
 		t.Fatalf("theme surfaces are not layered: background=%v panel=%v border=%v", background, panel, border)
 	}
+	if got := workbench.Size(theme.SizeNamePadding); got != 6 {
+		t.Fatalf("theme padding = %v, want 6", got)
+	}
+	if got := workbench.Size(theme.SizeNameInnerPadding); got != 6 {
+		t.Fatalf("theme inner padding = %v, want 6", got)
+	}
 }

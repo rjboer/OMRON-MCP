@@ -64,11 +64,11 @@ func (t workbenchTheme) Size(name fyne.ThemeSizeName) float32 {
 	case theme.SizeNameHeadingText:
 		return 20
 	case theme.SizeNameInnerPadding:
-		return 10
+		return 6
 	case theme.SizeNamePadding:
-		return 12
+		return 6
 	case theme.SizeNameLineSpacing:
-		return 4
+		return 2
 	case theme.SizeNameSeparatorThickness, theme.SizeNameSplitThickness:
 		return 1
 	case theme.SizeNameButtonRadius, theme.SizeNameCardRadius, theme.SizeNameSelectionRadius:

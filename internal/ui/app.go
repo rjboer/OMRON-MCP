@@ -471,13 +471,14 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 		addActivity("MCP Configuration", "", "applied", state.MCPExecutable)
 		status.SetText("MCP executable configured")
 	})
-	mcpConnection := container.NewVBox(
+	mcpContent := container.NewVBox(
 		widget.NewLabelWithStyle("MCP Connection", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		widget.NewLabel("Validates the local stdio server; it does not indicate PLC or controller connectivity."),
 		widget.NewCard("Connection status", "", mcpPanelDetails),
 		widget.NewCard("Configured executable", "", container.NewVBox(executableEntry, applyExecutableButton, resolvedExecutableLabel, workingDirectoryLabel)),
 		widget.NewCard("MCP log (latest 300 entries)", "Rolling", container.NewVScroll(activityView)),
 	)
+	mcpConnection := container.NewVScroll(mcpContent)
 	updateButton := widget.NewButton("Check for updates", func() {
 		go func() {
 			release, err := updater.Latest(context.Background(), http.DefaultClient, updater.DefaultRepository)
@@ -515,7 +516,7 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 			fyne.Do(func() { status.SetText("Update downloaded; restarting..."); w.Close() })
 		}()
 	})
-	mcpConnection.Add(container.NewHBox(widget.NewButton("Test MCP Connection", checkMCP), updateButton))
+	mcpContent.Add(container.NewHBox(widget.NewButton("Test MCP Connection", checkMCP), updateButton))
 
 	mainTabs := newMainTabs(discovery, explorer, validation, gitlab, mcpConnection)
 	go checkMCP()
