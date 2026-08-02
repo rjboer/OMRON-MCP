@@ -88,4 +88,4 @@ if ($LASTEXITCODE -ne 0 -or $goVersion -notmatch [regex]::Escape($GoToolchain)) 
 Write-Host "Using compiler: $CCPath"
 Write-Host "Using Go: $goVersion"
 Write-Host "Writing executable: $outputPath"
-go build -mod=readonly -ldflags "-H=windowsgui" -o $outputPath $Target
+go build -mod=readonly -tags migrated_fynedo -ldflags "-s -w -H=windowsgui" -o $outputPath $Target
