@@ -462,14 +462,15 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 		}()
 	})
 	buildActionPanel := widget.NewCard("Build action", "Ready", container.NewVBox(validationDescription, container.NewCenter(buildButton)))
+	adapterPanel := widget.NewCard("NexCC build adapter", "Available", widget.NewLabel("Compiler adapter detected."))
+	buildOverview := container.NewGridWithColumns(2, adapterPanel, buildActionPanel)
 	buildConsole := container.NewStack(canvas.NewRectangle(color.NRGBA{A: 0xFF}), container.NewPadded(buildOutput))
 	buildOutputPanel := widget.NewCard("Build output", "Live", container.NewVScroll(buildConsole))
 	dependencyPanel := widget.NewCard("Detected build dependencies", "Structured paths", container.NewVScroll(dependencyList))
 	validation := container.NewVScroll(container.NewVBox(
 		widget.NewLabelWithStyle("Validation / Build", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		widget.NewLabel("Review the available local build adapter and detected dependencies."),
-		widget.NewCard("NexCC build adapter", "Available", widget.NewLabel("Compiler adapter detected.")),
-		buildActionPanel,
+		buildOverview,
 		buildOutputPanel,
 		dependencyPanel,
 		container.NewCenter(capButton),
