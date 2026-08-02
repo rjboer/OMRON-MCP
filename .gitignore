@@ -31,4 +31,19 @@ go.work.sum
 # .idea/
 # .vscode/
 .codex/
+
+# Local and generated documentation/context
+.docs/
 docs/
+
+# Local worktrees and build output
+.worktrees/
+bin/
+dist/
+
+# Local tooling and temporary files
+*.log
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
