@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Install Linux and Windows build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            gcc \
+            gcc-mingw-w64-x86-64 \
+            g++-mingw-w64-x86-64 \
+            libgl1-mesa-dev \
+            xorg-dev \
+            xvfb
+
+      - name: Test all packages
+        run: xvfb-run --auto-servernum go test -tags x11 ./... -count=1
+
+      - name: Test cross-build behavior
+        run: ./scripts/build-windows_test.sh
+
+      - name: Cross-build Windows executable
+        run: ./scripts/build-windows.sh
+
+      - name: Upload Windows executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: omron-mcp-windows-amd64
+          path: dist/omron-mcp-windows-amd64.exe
+          retention-days: 14
+          if-no-files-found: error

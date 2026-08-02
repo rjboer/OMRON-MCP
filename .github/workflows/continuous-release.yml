@@ -1,0 +1,114 @@
+name: Continuous release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: continuous-release
+  cancel-in-progress: false
+
+jobs:
+  build-attest-publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Install Linux and Windows build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            gcc \
+            gcc-mingw-w64-x86-64 \
+            g++-mingw-w64-x86-64 \
+            libgl1-mesa-dev \
+            xorg-dev \
+            xvfb
+
+      - name: Test all packages
+        run: xvfb-run --auto-servernum go test -tags x11 ./... -count=1
+
+      - name: Test cross-build behavior
+        run: ./scripts/build-windows_test.sh
+
+      - name: Cross-build Windows executable
+        run: ./scripts/build-windows.sh
+
+      - name: Create SHA-256 checksum
+        run: |
+          cd dist
+          sha256sum omron-mcp-windows-amd64.exe > SHA256SUMS.txt
+
+      - name: Upload verified workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: omron-mcp-windows-amd64
+          path: |
+            dist/omron-mcp-windows-amd64.exe
+            dist/SHA256SUMS.txt
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Register build provenance
+        id: attest
+        uses: actions/attest@v4
+        with:
+          subject-checksums: dist/SHA256SUMS.txt
+
+      - name: Prepare attestation bundle
+        env:
+          BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
+        run: cp "$BUNDLE_PATH" dist/omron-mcp-windows-amd64.attestation.json
+
+      - name: Publish continuous prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          notes=$(printf 'Built from `%s` by [GitHub Actions](%s).\n\nVerify with:\n\n```text\ngh attestation verify omron-mcp-windows-amd64.exe --repo %s\n```\n' \
+            "$SOURCE_SHA" "$RUN_URL" "$GITHUB_REPOSITORY")
+          assets=(
+            "dist/omron-mcp-windows-amd64.exe"
+            "dist/SHA256SUMS.txt"
+            "dist/omron-mcp-windows-amd64.attestation.json"
+          )
+          current_main_sha=$(gh api \
+            "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" \
+            --jq '.object.sha')
+          if [[ "$current_main_sha" != "$SOURCE_SHA" ]]; then
+            echo "Skipping publication: $SOURCE_SHA is no longer the current main commit ($current_main_sha)."
+            exit 0
+          fi
+
+          if gh release view continuous >/dev/null 2>&1; then
+            gh release upload continuous "${assets[@]}" --clobber
+            gh api --method PATCH \
+              "repos/${GITHUB_REPOSITORY}/git/refs/tags/continuous" \
+              -f sha="$SOURCE_SHA" \
+              -F force=true
+            gh release edit continuous \
+              --prerelease \
+              --title "Continuous Windows build" \
+              --notes "$notes"
+          else
+            gh release create continuous "${assets[@]}" \
+              --target "$SOURCE_SHA" \
+              --prerelease \
+              --title "Continuous Windows build" \
+              --notes "$notes"
+          fi
