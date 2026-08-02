@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -42,15 +43,54 @@ func Latest(ctx context.Context, client *http.Client, repository string) (Releas
 	if err != nil {
 		return Release{}, err
 	}
-	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
+		response.Body.Close()
 		return Release{}, fmt.Errorf("GitHub release request failed: %s", response.Status)
 	}
 	var release Release
 	if err := json.NewDecoder(response.Body).Decode(&release); err != nil {
+		response.Body.Close()
 		return Release{}, err
 	}
+	response.Body.Close()
+	if release.TagName != "" {
+		commit, err := tagCommit(ctx, client, repository, release.TagName)
+		if err != nil {
+			return Release{}, err
+		}
+		release.TargetCommitish = commit
+	}
 	return release, nil
+}
+
+func tagCommit(ctx context.Context, client *http.Client, repository, tag string) (string, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/repos/"+repository+"/git/ref/tags/"+url.PathEscape(tag), nil)
+	if err != nil {
+		return "", err
+	}
+	request.Header.Set("Accept", "application/vnd.github+json")
+	request.Header.Set("User-Agent", "omron-mcp-updater")
+	response, err := client.Do(request)
+	if err != nil {
+		return "", err
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("GitHub tag request failed: %s", response.Status)
+	}
+	var reference struct {
+		Object struct {
+			SHA  string `json:"sha"`
+			Type string `json:"type"`
+		} `json:"object"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&reference); err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(reference.Object.SHA) == "" {
+		return "", errors.New("GitHub tag did not resolve to a commit")
+	}
+	return reference.Object.SHA, nil
 }
 
 func (release Release) WindowsAsset() (Asset, error) {
