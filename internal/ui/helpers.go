@@ -6,6 +6,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/widget"
 	"github.com/rjboer/omron-mcp/internal/sysmac"
 )
 
@@ -44,15 +45,42 @@ func InitialDiscoveryPath(saved, fallback string) string {
 }
 
 func projectCandidateLabel(candidate sysmac.ProjectCandidate) string {
-	modified := "unknown"
-	if !candidate.Modified.IsZero() {
-		modified = candidate.Modified.Local().Format("2006-01-02 15:04")
-	}
-	text := fmt.Sprintf("%s\nID: %s\nFolder: %s\nModified: %s\nStatus: %s", candidate.Name, candidate.ID, candidate.Folder, modified, candidate.Status)
+	text := strings.Join(projectCandidateLines(candidate), "\n")
 	if candidate.Error != "" {
 		text += "\nError: " + candidate.Error
 	}
 	return text
+}
+
+func projectCandidateLines(candidate sysmac.ProjectCandidate) []string {
+	modified := "unknown"
+	if !candidate.Modified.IsZero() {
+		modified = candidate.Modified.Local().Format("2006-01-02 15:04")
+	}
+	return []string{
+		candidate.Name,
+		fmt.Sprintf("ID: %s · Modified: %s · Status: %s", candidate.ID, modified, candidate.Status),
+		"Folder: " + candidate.Folder,
+	}
+}
+
+func newProjectCandidateRow() *fyne.Container {
+	title := widget.NewLabel("")
+	title.TextStyle.Bold = true
+	metadata := widget.NewLabel("")
+	folder := widget.NewLabel("")
+	for _, label := range []*widget.Label{title, metadata, folder} {
+		label.Wrapping = fyne.TextWrapOff
+		label.Truncation = fyne.TextTruncateEllipsis
+	}
+	return container.NewVBox(title, metadata, folder)
+}
+
+func setProjectCandidateRow(row *fyne.Container, candidate sysmac.ProjectCandidate) {
+	lines := projectCandidateLines(candidate)
+	for i, line := range lines {
+		row.Objects[i].(*widget.Label).SetText(line)
+	}
 }
 
 func FilteredEntities(entities []sysmac.EntitySummary, query string) []sysmac.EntitySummary {

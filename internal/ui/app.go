@@ -162,16 +162,12 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 	}
 	projectList := widget.NewList(
 		func() int { return len(state.DiscoveryCandidates) },
-		func() fyne.CanvasObject {
-			label := widget.NewLabel("")
-			label.Wrapping = fyne.TextWrapWord
-			return label
-		},
+		func() fyne.CanvasObject { return newProjectCandidateRow() },
 		func(id widget.ListItemID, obj fyne.CanvasObject) {
 			if id < 0 || id >= len(state.DiscoveryCandidates) {
 				return
 			}
-			obj.(*widget.Label).SetText(projectCandidateLabel(state.DiscoveryCandidates[id]))
+			setProjectCandidateRow(obj.(*fyne.Container), state.DiscoveryCandidates[id])
 		},
 	)
 	projectList.OnSelected = func(id widget.ListItemID) {
@@ -179,9 +175,11 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 			return
 		}
 		selectedCandidate = id
-		state.SelectedProjectFolder = state.DiscoveryCandidates[id].Folder
+		candidate := state.DiscoveryCandidates[id]
+		state.SelectedProjectFolder = candidate.Folder
+		projectSummary.SetText(projectCandidateLabel(candidate))
 		refreshDiscoveryMessage()
-		status.SetText("Selected project: " + state.DiscoveryCandidates[id].Name)
+		status.SetText("Selected project: " + candidate.Name)
 	}
 	saveDiscoveryPath := func(value string) {
 		if prefs != nil && strings.TrimSpace(value) != "" {

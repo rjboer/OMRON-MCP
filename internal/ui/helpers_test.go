@@ -2,8 +2,11 @@ package ui
 
 import (
 	"reflect"
+	"strings"
 	"testing"
+	"time"
 
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
 	"github.com/rjboer/omron-mcp/internal/sysmac"
 )
@@ -78,5 +81,48 @@ func TestInitialDiscoveryPathPrefersSavedPath(t *testing.T) {
 	}
 	if got := InitialDiscoveryPath("", `C:\OMRON\Data\Solution`); got != `C:\OMRON\Data\Solution` {
 		t.Fatalf("fallback path = %q", got)
+	}
+}
+
+func TestProjectCandidateLinesKeepRowsStructured(t *testing.T) {
+	candidate := sysmac.ProjectCandidate{
+		Name:     "Waterjet",
+		ID:       "22994b64-903d-4e2d-ae31-a6fb4e029729",
+		Folder:   `C:\OMRON\Data\Solution\22994b64-903d-4e2d-ae31-a6fb4e029729`,
+		Modified: time.Date(2026, time.July, 23, 2, 12, 0, 0, time.UTC),
+		Status:   sysmac.ProjectStatusValid,
+	}
+
+	lines := projectCandidateLines(candidate)
+	if len(lines) != 3 {
+		t.Fatalf("got %d project row lines, want 3", len(lines))
+	}
+	if lines[0] != "Waterjet" {
+		t.Fatalf("title line = %q", lines[0])
+	}
+	if !strings.Contains(lines[1], "ID: "+candidate.ID) || !strings.Contains(lines[1], "Status: valid") {
+		t.Fatalf("metadata line = %q", lines[1])
+	}
+	if lines[2] != "Folder: "+candidate.Folder {
+		t.Fatalf("folder line = %q", lines[2])
+	}
+}
+
+func TestProjectCandidateRowUsesSingleLineEllipsis(t *testing.T) {
+	row := newProjectCandidateRow()
+	if len(row.Objects) != 3 {
+		t.Fatalf("row contains %d objects, want 3", len(row.Objects))
+	}
+	for i, object := range row.Objects {
+		label, ok := object.(*widget.Label)
+		if !ok {
+			t.Fatalf("row object %d has type %T, want *widget.Label", i, object)
+		}
+		if label.Wrapping != fyne.TextWrapOff {
+			t.Errorf("row label %d wrapping = %v, want TextWrapOff", i, label.Wrapping)
+		}
+		if label.Truncation != fyne.TextTruncateEllipsis {
+			t.Errorf("row label %d truncation = %v, want TextTruncateEllipsis", i, label.Truncation)
+		}
 	}
 }
