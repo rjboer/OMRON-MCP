@@ -33,4 +33,4 @@ This project is in testing and active development. If something is unclear or do
 
 Created and maintained by **Roelof Jan Boer**.
 
-Connect with Roelof Jan Boer on [LinkedIn](https://www.linkedin.com/in/rjboer/).
+Like this project or work with OMRON, PLCs, AI, and industrial automation? [Add Roelof Jan Boer on LinkedIn](https://www.linkedin.com/in/rjboer/) and join the conversation.
