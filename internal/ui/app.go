@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -18,9 +21,10 @@ import (
 	"github.com/rjboer/omron-mcp/internal/mcp"
 	"github.com/rjboer/omron-mcp/internal/model"
 	"github.com/rjboer/omron-mcp/internal/sysmac"
+	"github.com/rjboer/omron-mcp/internal/updater"
 )
 
-func Run(logger *log.Logger, initialPath, mcpExecutable string) error {
+func Run(logger *log.Logger, initialPath, mcpExecutable, version string) error {
 	a := app.NewWithID("rjboer.omron-sysmac-mcp-workbench")
 	w := a.NewWindow("OMRON Sysmac MCP Workbench")
 	w.Resize(fyne.NewSize(800, 520))
@@ -33,12 +37,12 @@ func Run(logger *log.Logger, initialPath, mcpExecutable string) error {
 		DiscoveryPathValid: true,
 	}
 	applicationExecutable, _ := os.Executable()
-	w.SetContent(buildWorkbench(w, state, logger, applicationExecutable, a.Preferences()))
+	w.SetContent(buildWorkbench(w, state, logger, applicationExecutable, version, a.Preferences()))
 	w.ShowAndRun()
 	return nil
 }
 
-func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, applicationExecutable string, prefs fyne.Preferences) fyne.CanvasObject {
+func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, applicationExecutable, version string, prefs fyne.Preferences) fyne.CanvasObject {
 	path := widget.NewEntry()
 	path.SetText(state.ProjectPath)
 	path.SetPlaceHolder(`C:\OMRON\Data\Solution`)
@@ -354,6 +358,44 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 		mcpPanelDetails,
 		widget.NewButton("Test MCP Connection", checkMCP),
 	)
+	updateButton := widget.NewButton("Check for updates", func() {
+		go func() {
+			release, err := updater.Latest(context.Background(), http.DefaultClient, updater.DefaultRepository)
+			if err != nil {
+				fyne.Do(func() { dialog.ShowError(err, w) })
+				return
+			}
+			asset, err := release.WindowsAsset()
+			if err != nil {
+				fyne.Do(func() { dialog.ShowError(err, w) })
+				return
+			}
+			if !release.HasUpdate(version) {
+				fyne.Do(func() {
+					dialog.ShowInformation("No update available", "This installation is already running the latest published build.", w)
+				})
+				return
+			}
+			if asset.SHA256() == "" {
+				fyne.Do(func() { dialog.ShowError(fmt.Errorf("GitHub release did not provide a SHA-256 checksum"), w) })
+				return
+			}
+			helper := filepath.Join(filepath.Dir(applicationExecutable), "omron-mcp-updater.exe")
+			if _, err := os.Stat(helper); err != nil {
+				fyne.Do(func() {
+					dialog.ShowError(fmt.Errorf("updater executable not found next to the application: %s", helper), w)
+				})
+				return
+			}
+			command := exec.Command(helper, "--target", applicationExecutable, "--asset-url", asset.BrowserDownloadURL, "--sha256", asset.SHA256())
+			if err := command.Start(); err != nil {
+				fyne.Do(func() { dialog.ShowError(err, w) })
+				return
+			}
+			fyne.Do(func() { status.SetText("Update downloaded; restarting..."); w.Close() })
+		}()
+	})
+	mcpConnection.Add(updateButton)
 
 	mainTabs := newMainTabs(discovery, explorer, validation, gitlab, mcpConnection)
 	go checkMCP()

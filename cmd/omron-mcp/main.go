@@ -11,12 +11,14 @@ import (
 	"github.com/rjboer/omron-mcp/internal/ui"
 )
 
+var buildCommit = "dev"
+
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "--mcp" {
 		runMCPServer()
 		return
 	}
-	runGUI()
+	runGUI(buildCommit)
 }
 
 func runMCPServer() {
@@ -26,7 +28,7 @@ func runMCPServer() {
 	}
 }
 
-func runGUI() {
+func runGUI(version string) {
 	flags := flag.NewFlagSet("omron-mcp", flag.ExitOnError)
 	projectPath := flags.String("project", "C:\\OMRON\\Data\\Solution", "Sysmac solution directory or project container")
 	mcpExecutable := flags.String("mcp-executable", os.Args[0], "MCP stdio server executable; defaults to this executable")
@@ -38,7 +40,7 @@ func runGUI() {
 		os.Exit(1)
 	}
 	defer closeLogger()
-	if err := ui.Run(logger, *projectPath, *mcpExecutable); err != nil {
+	if err := ui.Run(logger, *projectPath, *mcpExecutable, version); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

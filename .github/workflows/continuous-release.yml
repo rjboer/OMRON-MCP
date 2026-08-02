@@ -51,7 +51,7 @@ jobs:
       - name: Create SHA-256 checksum
         run: |
           cd dist
-          sha256sum omron-mcp-windows-amd64.exe > SHA256SUMS.txt
+          sha256sum omron-mcp-windows-amd64.exe omron-mcp-updater-windows-amd64.exe > SHA256SUMS.txt
 
       - name: Upload verified workflow artifact
         uses: actions/upload-artifact@v4
@@ -59,6 +59,7 @@ jobs:
           name: omron-mcp-windows-amd64
           path: |
             dist/omron-mcp-windows-amd64.exe
+            dist/omron-mcp-updater-windows-amd64.exe
             dist/SHA256SUMS.txt
           retention-days: 14
           if-no-files-found: error
@@ -84,6 +85,7 @@ jobs:
             "$SOURCE_SHA" "$RUN_URL" "$GITHUB_REPOSITORY")
           assets=(
             "dist/omron-mcp-windows-amd64.exe"
+            "dist/omron-mcp-updater-windows-amd64.exe"
             "dist/SHA256SUMS.txt"
             "dist/omron-mcp-windows-amd64.attestation.json"
           )

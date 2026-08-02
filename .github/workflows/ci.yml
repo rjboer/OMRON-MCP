@@ -52,6 +52,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: omron-mcp-windows-amd64
-          path: dist/omron-mcp-windows-amd64.exe
+          path: |
+            dist/omron-mcp-windows-amd64.exe
+            dist/omron-mcp-updater-windows-amd64.exe
           retention-days: 14
           if-no-files-found: error
