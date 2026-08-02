@@ -58,3 +58,5 @@ Feature branches are optional and should be merged back into `develop` before a 
 Created and maintained by **Roelof Jan Boer**.
 
 Like my work? [Add Roelof Jan Boer on LinkedIn](https://www.linkedin.com/in/rjboer/) and join the conversation.
+
+#OMRON MCP is an independent open-source project and is not affiliated with or endorsed by OMRON Corporation.
