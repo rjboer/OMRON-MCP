@@ -55,10 +55,11 @@ func Latest(ctx context.Context, client *http.Client, repository string) (Releas
 	response.Body.Close()
 	if release.TagName != "" {
 		commit, err := tagCommit(ctx, client, repository, release.TagName)
-		if err != nil {
+		if err == nil {
+			release.TargetCommitish = commit
+		} else if strings.TrimSpace(release.TargetCommitish) == "" {
 			return Release{}, err
 		}
-		release.TargetCommitish = commit
 	}
 	return release, nil
 }

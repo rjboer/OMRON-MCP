@@ -30,7 +30,7 @@ func Run(logger *log.Logger, initialPath, mcpExecutable, version string) error {
 	a := app.NewWithID("rjboer.omron-sysmac-mcp-workbench")
 	a.Settings().SetTheme(newWorkbenchTheme())
 	w := a.NewWindow("OMRON Sysmac MCP Workbench")
-	w.Resize(fyne.NewSize(1100, 720))
+	w.Resize(fyne.NewSize(1280, 820))
 	w.SetFixedSize(false)
 	w.SetPadded(false)
 	w.CenterOnScreen()
@@ -46,6 +46,9 @@ func Run(logger *log.Logger, initialPath, mcpExecutable, version string) error {
 		logger.Printf("updater helper is unavailable: %v", err)
 	}
 	w.SetContent(buildWorkbench(w, state, logger, applicationExecutable, version, a.Preferences()))
+	// Some desktop drivers recalculate window hints when content is assigned.
+	// Re-apply this after SetContent so the user can resize the workbench.
+	w.SetFixedSize(false)
 	w.ShowAndRun()
 	return nil
 }
@@ -505,36 +508,53 @@ func buildWorkbench(w fyne.Window, state *model.Workbench, logger *log.Logger, a
 	mcpConnection := container.NewVScroll(mcpContent)
 	updateButton := widget.NewButton("Check for updates", func() {
 		go func() {
-			release, err := updater.Latest(context.Background(), http.DefaultClient, updater.DefaultRepository)
+			fyne.Do(func() { status.SetText("Checking GitHub for updates...") })
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			release, err := updater.Latest(ctx, http.DefaultClient, updater.DefaultRepository)
+			cancel()
 			if err != nil {
-				fyne.Do(func() { dialog.ShowError(err, w) })
+				fyne.Do(func() {
+					status.SetText("Update check failed")
+					addActivity("Update", "", "failed", err.Error())
+					dialog.ShowError(err, w)
+				})
 				return
 			}
 			asset, err := release.WindowsAsset()
 			if err != nil {
-				fyne.Do(func() { dialog.ShowError(err, w) })
+				fyne.Do(func() {
+					status.SetText("Windows update unavailable")
+					addActivity("Update", "", "failed", err.Error())
+					dialog.ShowError(err, w)
+				})
 				return
 			}
 			if !release.HasUpdate(version) {
 				fyne.Do(func() {
+					status.SetText("Already up to date")
+					addActivity("Update", "", "checked", "already running the latest published build")
 					dialog.ShowInformation("No update available", "This installation is already running the latest published build.", w)
 				})
 				return
 			}
 			if asset.SHA256() == "" {
-				fyne.Do(func() { dialog.ShowError(fmt.Errorf("GitHub release did not provide a SHA-256 checksum"), w) })
+				fyne.Do(func() {
+					status.SetText("Update checksum unavailable")
+					dialog.ShowError(fmt.Errorf("GitHub release did not provide a SHA-256 checksum"), w)
+				})
 				return
 			}
 			helper := filepath.Join(filepath.Dir(applicationExecutable), "omron-mcp-updater.exe")
 			if _, err := os.Stat(helper); err != nil {
 				fyne.Do(func() {
+					status.SetText("Updater helper unavailable")
 					dialog.ShowError(fmt.Errorf("updater executable not found next to the application: %s", helper), w)
 				})
 				return
 			}
 			command := exec.Command(helper, "--update-helper", "--target", applicationExecutable, "--asset-url", asset.BrowserDownloadURL, "--sha256", asset.SHA256())
 			if err := command.Start(); err != nil {
-				fyne.Do(func() { dialog.ShowError(err, w) })
+				fyne.Do(func() { status.SetText("Update launch failed"); dialog.ShowError(err, w) })
 				return
 			}
 			fyne.Do(func() { status.SetText("Update downloaded; restarting..."); w.Close() })
