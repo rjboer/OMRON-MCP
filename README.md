@@ -2,6 +2,10 @@
 
 ## AI-assisted engineering for OMRON Sysmac Studio
 
+> [!IMPORTANT]
+> Yes, I am still developing the tool, it is still under test. 
+
+
 **Give your AI assistant a controlled, practical connection to real OMRON PLC projects.**
 
 OMRON MCP is a Go-based [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server and Windows workbench for OMRON Sysmac Studio projects. It allows compatible AI tools to inspect project structure, understand PLC code, analyse variables, investigate faults, generate Structured Text, and propose or apply reviewed changes directly to the project on your machine.
